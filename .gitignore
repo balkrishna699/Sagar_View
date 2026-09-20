@@ -1,11 +1,49 @@
-# Virtual environment
+# ==============================
+# Python virtual environments
+# ==============================
+
 venv/
 .venv/
 
-__pycahce__/
-*.pyc
 
-.env
+# ==============================
+# Python cache / compiled files
+# ==============================
 
-datasets/*.nc
-datasets/*.crdownload
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# ==============================
+# Jupyter
+# ==============================
+
+.ipynb_checkpoints/
+
+
+# ==============================
+# Large scientific datasets
+# ==============================
+
+*.nc
+*.nc4
+*.h5
+*.hdf5
+!datasets/synthetic_argo_demo.nc
+
+
+# ==============================
+# IDE files
+# ==============================
+
+.vscode/
+.idea/
+
+
+# ==============================
+# Operating system files
+# ==============================
+
+.DS_Store
+Thumbs.db
