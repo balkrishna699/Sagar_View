@@ -24,10 +24,19 @@ export class OceanScene {
     container.appendChild(this.renderer.domElement);
     
     // Lighting
-    const light = new THREE.DirectionalLight(0xffffff, 0.8);
-    light.position.set(100, 100, 100);
+    const light = new THREE.DirectionalLight(0xffffff, 1.0);
+    light.position.set(150, 150, 100);
+    light.castShadow = true;
     this.scene.add(light);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(ambientLight);
+
+    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+    fillLight.position.set(-150, -150, -100);
+    this.scene.add(fillLight);
+
+    console.log('✅ Lighting configured');
     
     // Grid helper for reference
     const gridHelper = new THREE.GridHelper(200, 20, 0xcccccc, 0xeeeeee);

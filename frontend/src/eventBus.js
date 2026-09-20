@@ -31,3 +31,24 @@ eventBus.on('timeChanged', ({ timestamp }) => {
 eventBus.on('colorbarChanged', ({ variable, scale }) => {
   console.log(`📊 Dashboard: colorbar ${variable} (${scale})`);
 });
+
+// Track current variable
+let currentVariable = 'temperature';
+
+// Listen for variable changes from Person 3 (Dashboard)
+eventBus.on('colorbarChanged', ({ variable, scale }) => {
+  console.log(`📊 Changing to ${variable}`);
+  currentVariable = variable;
+  
+  const { minVal, maxVal } = renderOceanVolumeMultiVariable(
+    oceanScene, 
+    mockData, 
+    0,  // Start at surface
+    variable
+  );
+  
+  colorbar.update(minVal, maxVal);
+});
+
+// Expose for testing
+window.currentVariable = currentVariable;
