@@ -9,7 +9,6 @@ import { eventBus } from './eventBus.js';
 import { fetchOceanData } from './api.js';
 import { setupDashboardBridge } from './dashboardBridge.js';
 import { IsosurfaceRenderer } from './isosurfaceRenderer.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { TimeSeriesManager } from './timeseries.js';
 import { TimeControls } from './timeControls.js';
 

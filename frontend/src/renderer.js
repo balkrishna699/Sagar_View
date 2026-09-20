@@ -130,14 +130,13 @@ export function renderOceanVolumeMultiVariable(
   geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
   
- const material = new THREE.MeshPhongMaterial({
-  color: 0xffffff,
-  vertexColors: true,
-  shininess: 100,
-  emissive: 0x333333,
-  side: THREE.DoubleSide
-});
-  
+  const material = new THREE.PointsMaterial({
+    size: 1.5,
+    vertexColors: true,
+    transparent: true,
+    sizeAttenuation: true
+  });
+
   const volume = new THREE.Points(geometry, material);
   volume.name = 'oceanVolume';
   scene.add(volume);

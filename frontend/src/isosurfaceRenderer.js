@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /**
  * Render pre-computed isosurfaces instead of points
@@ -14,7 +15,7 @@ export class IsosurfaceRenderer {
   // Load pre-computed isosurfaces for a time step
   async loadIsosurfaces(timeIndex) {
     this.clearIsosurfaces();
-    
+
     // Expect files like: isosurface_time_0_temp_20.gltf
     const urls = [
       `/data/isosurfaces/time_${timeIndex}_temp_10.gltf`,
@@ -23,19 +24,24 @@ export class IsosurfaceRenderer {
       `/data/isosurfaces/time_${timeIndex}_temp_25.gltf`,
       `/data/isosurfaces/time_${timeIndex}_temp_30.gltf`,
     ];
-    
+
     const loader = new GLTFLoader();
-    
+    let loadedCount = 0;
+
     for (const url of urls) {
       try {
+        const response = await fetch(url, { method: 'HEAD' }).catch(() => null);
+        if (!response || !response.ok) {
+          continue;
+        }
+
         const gltf = await new Promise((resolve, reject) => {
           loader.load(url, resolve, undefined, reject);
         });
-        
+
         gltf.scene.traverse((child) => {
           if (child.isMesh) {
-            // Apply color based on temperature level
-            const temp = parseInt(url.match(/temp_(\d+)/)[1]);
+            const temp = parseInt(url.match(/temp_(\d+)/)[1], 10);
             child.material = new THREE.MeshPhongMaterial({
               color: this.getColorForTemp(temp),
               emissive: 0x333333,
@@ -43,14 +49,17 @@ export class IsosurfaceRenderer {
             });
           }
         });
-        
+
         this.oceanScene.getScene().add(gltf.scene);
         this.isosurfaces.push(gltf.scene);
-        
-        console.log(`✅ Loaded isosurface: ${temp}°C`);
+        loadedCount += 1;
       } catch (error) {
-        console.warn(`⚠️ Could not load ${url}:`, error);
+        // Missing or invalid generated isosurface files are non-fatal for the viewer.
       }
+    }
+
+    if (loadedCount === 0) {
+      console.info('ℹ️ No isosurface files available for this timestep; rendering point cloud only.');
     }
   }
   
