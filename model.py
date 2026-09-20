@@ -3,7 +3,23 @@ from typing import Any
 
 
 @dataclass
+class DatasetMetadata:
+    source: str
+    dataset_name: str
+    format: str
+
+    description: str = ""
+
+    units: dict = field(default_factory=dict)
+
+    source_variables: dict = field(default_factory=dict)
+
+    coordinate_conventions: dict = field(default_factory=dict)
+
+
+@dataclass
 class OceanDataset:
+
     latitude: Any = None
     longitude: Any = None
 
@@ -22,4 +38,4 @@ class OceanDataset:
     mixed_layer_depth: Any = None
     tropical_cyclone_heat_potential: Any = None
 
-    metadata: dict = field(default_factory=dict)
+    metadata: DatasetMetadata | None = None

@@ -1,7 +1,7 @@
 import xarray as xr
 
 from parsers.base import BaseParser
-from model import OceanDataset
+from model import OceanDataset, DatasetMetadata
 
 
 class NetCDFParser(BaseParser):
@@ -12,6 +12,43 @@ class NetCDFParser(BaseParser):
     def parse(self):
 
         ds = xr.open_dataset(self.filepath)
+
+        metadata = DatasetMetadata(
+            source="INCOIS",
+            dataset_name="RSMC HYCOM",
+            format="NetCDF",
+
+            description="Ocean forecast dataset from INCOIS/RSMC HYCOM",
+
+            units={
+                "temperature": ds["TEMP"].attrs.get("units", ""),
+                "salinity": ds["SALN"].attrs.get("units", ""),
+                "u_current": ds["UVEL"].attrs.get("units", ""),
+                "v_current": ds["VVEL"].attrs.get("units", ""),
+                "sea_surface_height": ds["SSH"].attrs.get("units", ""),
+                "tropical_cyclone_heat_potential":
+                    ds["TCHP"].attrs.get("units", ""),
+                "mixed_layer_depth":
+                    ds["MLD"].attrs.get("units", "")
+            },
+
+            source_variables={
+                "temperature": "TEMP",
+                "salinity": "SALN",
+                "u_current": "UVEL",
+                "v_current": "VVEL",
+                "sea_surface_height": "SSH",
+                "mixed_layer_depth": "MLD",
+                "tropical_cyclone_heat_potential": "TCHP"
+            },
+
+            coordinate_conventions={
+                "latitude": "degrees_north",
+                "longitude": "degrees_east",
+                "depth": "meters",
+                "depth_positive": "down"
+            }
+        )
 
         ocean_data = OceanDataset(
             latitude=ds["LAT"],
@@ -29,7 +66,7 @@ class NetCDFParser(BaseParser):
             mixed_layer_depth=ds["MLD"],
             tropical_cyclone_heat_potential=ds["TCHP"],
 
-            metadata=dict(ds.attrs)
+            metadata=metadata
         )
 
         return ocean_data
