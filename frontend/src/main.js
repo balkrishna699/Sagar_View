@@ -1,15 +1,27 @@
+import * as THREE from 'three';
 import { OceanScene, startRenderLoop } from './scene.js';
+import { generateMockOceanData } from './mockData.js';
+import { renderOceanVolume } from './renderer.js';
+import { DepthSlider } from './depthSlider.js';
 
 const container = document.getElementById('canvas-container');
 const oceanScene = new OceanScene(container);
 
-// Test cube
-const testGeometry = new THREE.BoxGeometry(20, 20, 20);
-const testMaterial = new THREE.MeshPhongMaterial({ color: 0x2a78d6 });
-const testMesh = new THREE.Mesh(testGeometry, testMaterial);
-oceanScene.getScene().add(testMesh);
+// Load mock data
+const mockData = generateMockOceanData();
+console.log('Mock data:', mockData);
+
+// Render initial volume
+renderOceanVolume(oceanScene, mockData, 0);
+
+// Depth slider
+new DepthSlider(container, mockData.grid.depth.length - 1, (depthIndex) => {
+  renderOceanVolume(oceanScene, mockData, depthIndex);
+});
 
 startRenderLoop(oceanScene);
 
-console.log('✅ Scene initialized');
+// Expose for debugging
 window.oceanScene = oceanScene;
+window.mockData = mockData;
+window.renderOceanVolume = renderOceanVolume;
