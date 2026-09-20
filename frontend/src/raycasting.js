@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sceneToLatLonDepth } from './coordinates.js';
+import { latLonDepthToScene } from './coordinates.js';
 
 export class MarkerManager {
   constructor(oceanScene, grid) {
@@ -13,7 +13,6 @@ export class MarkerManager {
   }
   
   addMarker(lat, lon, depth) {
-    const { latLonDepthToScene } = require('./coordinates.js');
     const pos = latLonDepthToScene(lat, lon, depth, this.grid);
     
     const geometry = new THREE.SphereGeometry(2, 16, 16);
@@ -45,12 +44,10 @@ export class MarkerManager {
       
       console.log(`✅ Marker clicked: lat=${lat.toFixed(2)}, lon=${lon.toFixed(2)}, depth=${depth}m`);
       
-      // Emit event
       window.dispatchEvent(new CustomEvent('markerClicked', {
         detail: { lat, lon, depth }
       }));
       
-      // Flash animation
       hitMarker.material.color.set(0xffff00);
       setTimeout(() => hitMarker.material.color.set(0xff6b35), 200);
     }
