@@ -1,8 +1,29 @@
-from parsers.netcdfparser import NetCDFParser
+from parsers.asciiparser import ASCIIParser
 
 
-parser = NetCDFParser(
-    "datasets/RSMC_hycom_20260919.nc"
+parser = ASCIIParser(
+    "datasets/test_ocean.csv"
 )
-ds = parser.parse()
 
+data = parser.parse()
+
+
+print("\n========== ASCII DATA ==========")
+
+print("Latitude:")
+print(data.latitude)
+
+print("\nLongitude:")
+print(data.longitude)
+
+print("\nDepth:")
+print(data.depth)
+
+print("\nTemperature:")
+print(data.temperature)
+
+print("\nSalinity:")
+print(data.salinity)
+
+print("\nMetadata:")
+print(data.metadata)
