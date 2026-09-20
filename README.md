@@ -10,11 +10,29 @@ The purpose of this component is to handle different ocean-data formats and conv
 ## Architecture
 
 
-INCOIS NetCDF ──→ NetCDFParser ──┐
-                                 │
-Synthetic Argo ──→ ArgoParser ───┼──→ OceanDataset
-                                 │
-ASCII / CSV ────→ ASCIIParser ───┘
-                                 │
-                                 ▼
-                         Visualization Layer
+INCOIS NetCDF
+      │
+      ▼
+ NetCDFParser
+      │
+      │
+      ├──────────────────┐
+      │                  │
+      ▼                  ▼
+OceanDataset       Visualization
+      ▲                  Layer
+      │
+      │
+ ArgoParser
+      ▲
+      │
+Synthetic Argo
+
+
+ASCII / CSV
+      │
+      ▼
+ ASCIIParser
+      │
+      ▼
+OceanDataset
