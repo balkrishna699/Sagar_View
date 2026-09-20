@@ -1,7 +1,7 @@
 import pandas as pd
 
 from parsers.base import BaseParser
-from model import OceanDataset
+from model import OceanDataset, DatasetMetadata
 
 
 class ASCIIParser(BaseParser):
@@ -56,6 +56,31 @@ class ASCIIParser(BaseParser):
         u_column = self._find_column(df.columns, "u_current")
         v_column = self._find_column(df.columns, "v_current")
 
+        metadata = DatasetMetadata(
+            source="ASCII/CSV",
+            dataset_name="ASCII/CSV Ocean Dataset",
+            format="CSV",
+
+            description="Ocean data provided in tabular ASCII/CSV format",
+
+            units={
+                "latitude": "degrees_north",
+                "longitude": "degrees_east",
+                "depth": "meters"
+            },
+
+            source_variables={
+                field: column_map[field]
+                for field in column_map
+            },
+
+            coordinate_conventions={
+                "latitude": "degrees_north",
+                "longitude": "degrees_east",
+                "depth": "meters"
+            }
+        )
+
         ocean_data = OceanDataset(
             latitude=df[column_map["latitude"]].to_numpy(),
             longitude=df[column_map["longitude"]].to_numpy(),
@@ -83,10 +108,7 @@ class ASCIIParser(BaseParser):
                 else None
             ),
 
-            metadata={
-                "source": "ASCII/CSV",
-                "filepath": self.filepath
-            }
+            metadata=metadata
         )
 
         return ocean_data
