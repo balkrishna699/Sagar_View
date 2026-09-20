@@ -1,0 +1,11 @@
+# Virtual environment
+venv/
+.venv/
+
+__pycahce__/
+*.pyc
+
+.env
+
+datasets/*.nc
+datasets/*.crdownload
