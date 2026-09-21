@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <title>Person 2 — Ocean Grid Query Test</title>
+
+  <style>
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background: #111827;
+      color: white;
+    }
+
+    .box {
+      background: #1f2937;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+
+    .success {
+      background: #065f46;
+    }
+
+    .error {
+      background: #7f1d1d;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      line-height: 1.7;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <h1>Person 2 — Ocean Grid Query Test</h1>
+
+  <div id="status" class="box">
+    Loading...
+  </div>
+
+  <div id="output"></div>
+
+
+  <script type="module">
+
+   import {
+  getTemperatureAt,
+  getSalinityAt,
+  getCurrentAt
+} from "/src/data/dataAdapter.js";
+
+import {
+  loadOceanData
+} from "/src/data/dataService.js";
+
+
+    const status =
+      document.getElementById("status");
+
+    const output =
+      document.getElementById("output");
+
+
+    async function runTest() {
+
+      try {
+
+        // --------------------------------------------------
+        // LOAD DATA
+        // --------------------------------------------------
+
+       const oceanData =
+  await loadOceanData();
+
+
+        // --------------------------------------------------
+        // REQUEST A REAL LOCATION
+        // --------------------------------------------------
+
+        const requestedLatitude = 15.2;
+
+        const requestedLongitude = 72.1;
+
+        const requestedDepth = 1050;
+
+
+        // --------------------------------------------------
+        // QUERY TEMPERATURE
+        // --------------------------------------------------
+
+        const temperature =
+          getTemperatureAt(
+            oceanData,
+            requestedLatitude,
+            requestedLongitude,
+            requestedDepth
+          );
+
+
+        // --------------------------------------------------
+        // QUERY SALINITY
+        // --------------------------------------------------
+
+        const salinity =
+          getSalinityAt(
+            oceanData,
+            requestedLatitude,
+            requestedLongitude,
+            requestedDepth
+          );
+
+
+        // --------------------------------------------------
+        // QUERY CURRENT
+        // --------------------------------------------------
+
+        const current =
+          getCurrentAt(
+            oceanData,
+            requestedLatitude,
+            requestedLongitude,
+            requestedDepth
+          );
+
+
+        // --------------------------------------------------
+        // SUCCESS
+        // --------------------------------------------------
+
+        status.className =
+          "box success";
+
+        status.textContent =
+          "SUCCESS — Coordinate queries are working.";
+
+
+        output.innerHTML = `
+
+          <div class="box">
+
+            <h2>Requested Location</h2>
+
+            <pre>
+Latitude:
+${requestedLatitude}°
+
+Longitude:
+${requestedLongitude}°
+
+Depth:
+${requestedDepth} m
+            </pre>
+
+          </div>
+
+
+          <div class="box">
+
+            <h2>Nearest Grid Point</h2>
+
+            <pre>
+Latitude:
+${temperature.latitude}°
+
+Longitude:
+${temperature.longitude}°
+
+Depth:
+${temperature.depth} m
+
+Array indices:
+
+Depth:
+${temperature.depthIndex}
+
+Latitude:
+${temperature.latitudeIndex}
+
+Longitude:
+${temperature.longitudeIndex}
+            </pre>
+
+          </div>
+
+
+          <div class="box">
+
+            <h2>Temperature</h2>
+
+            <pre>
+${temperature.value}
+            </pre>
+
+          </div>
+
+
+          <div class="box">
+
+            <h2>Salinity</h2>
+
+            <pre>
+${salinity.value}
+            </pre>
+
+          </div>
+
+
+          <div class="box">
+
+            <h2>Current</h2>
+
+            <pre>
+U component:
+${current.u} m/s
+
+V component:
+${current.v} m/s
+
+Magnitude:
+${current.magnitude} m/s
+
+Direction:
+${current.directionDegrees}°
+            </pre>
+
+          </div>
+
+        `;
+
+      }
+
+
+      catch (error) {
+
+        status.className =
+          "box error";
+
+        status.textContent =
+          "ERROR";
+
+        output.innerHTML =
+          `<pre>${error.stack}</pre>`;
+
+        console.error(error);
+
+      }
+
+    }
+
+
+    runTest();
+
+  </script>
+
+</body>
+
+</html>

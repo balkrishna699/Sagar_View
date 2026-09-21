@@ -1,0 +1,258 @@
+{
+  "schema_version": "1.0",
+  "description": "Sample normalized ocean data generated from INCOIS HYCOM and synthetic Argo datasets.",
+  "records": [
+    {
+      "latitude": 10.028401374816895,
+      "longitude": 69.97999572753906,
+      "depth": 10.0,
+      "time": "2026-09-20T12:00:00.000000000",
+      "temperature": 29.274396896362305,
+      "salinity": 35.99981689453125,
+      "u_current": -0.11382605135440826,
+      "v_current": -0.08257097750902176,
+      "sea_surface_height": 0.3484700322151184,
+      "mixed_layer_depth": 50.06224755554101,
+      "tropical_cyclone_heat_potential": 115.06960012939246,
+      "pressure": null,
+      "metadata": {
+        "source": "INCOIS",
+        "dataset_name": "RSMC HYCOM",
+        "format": "NetCDF",
+        "description": "Ocean forecast dataset from INCOIS/RSMC HYCOM",
+        "units": {
+          "temperature": "",
+          "salinity": "",
+          "u_current": "m/s",
+          "v_current": "m/s",
+          "sea_surface_height": "m",
+          "tropical_cyclone_heat_potential": "'KJ/cm2'",
+          "mixed_layer_depth": ""
+        },
+        "source_variables": {
+          "temperature": "TEMP",
+          "salinity": "SALN",
+          "u_current": "UVEL",
+          "v_current": "VVEL",
+          "sea_surface_height": "SSH",
+          "mixed_layer_depth": "MLD",
+          "tropical_cyclone_heat_potential": "TCHP"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "depth": "meters",
+          "depth_positive": "down"
+        }
+      }
+    },
+    {
+      "latitude": 11.971921920776367,
+      "longitude": 72.0199966430664,
+      "depth": 50.0,
+      "time": "2026-09-20T12:00:00.000000000",
+      "temperature": 28.59801483154297,
+      "salinity": 36.080928802490234,
+      "u_current": 0.0399521067738533,
+      "v_current": -0.1042860671877861,
+      "sea_surface_height": 0.36432111263275146,
+      "mixed_layer_depth": 41.4649025642146,
+      "tropical_cyclone_heat_potential": 105.1209897178392,
+      "pressure": null,
+      "metadata": {
+        "source": "INCOIS",
+        "dataset_name": "RSMC HYCOM",
+        "format": "NetCDF",
+        "description": "Ocean forecast dataset from INCOIS/RSMC HYCOM",
+        "units": {
+          "temperature": "",
+          "salinity": "",
+          "u_current": "m/s",
+          "v_current": "m/s",
+          "sea_surface_height": "m",
+          "tropical_cyclone_heat_potential": "'KJ/cm2'",
+          "mixed_layer_depth": ""
+        },
+        "source_variables": {
+          "temperature": "TEMP",
+          "salinity": "SALN",
+          "u_current": "UVEL",
+          "v_current": "VVEL",
+          "sea_surface_height": "SSH",
+          "mixed_layer_depth": "MLD",
+          "tropical_cyclone_heat_potential": "TCHP"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "depth": "meters",
+          "depth_positive": "down"
+        }
+      }
+    },
+    {
+      "latitude": 14.018019676208496,
+      "longitude": 74.0,
+      "depth": 100.0,
+      "time": "2026-09-20T12:00:00.000000000",
+      "temperature": null,
+      "salinity": null,
+      "u_current": 0.0,
+      "v_current": 0.0,
+      "sea_surface_height": 0.29787158966064453,
+      "mixed_layer_depth": 11.809788187218457,
+      "tropical_cyclone_heat_potential": 43.52874154522778,
+      "pressure": null,
+      "metadata": {
+        "source": "INCOIS",
+        "dataset_name": "RSMC HYCOM",
+        "format": "NetCDF",
+        "description": "Ocean forecast dataset from INCOIS/RSMC HYCOM",
+        "units": {
+          "temperature": "",
+          "salinity": "",
+          "u_current": "m/s",
+          "v_current": "m/s",
+          "sea_surface_height": "m",
+          "tropical_cyclone_heat_potential": "'KJ/cm2'",
+          "mixed_layer_depth": ""
+        },
+        "source_variables": {
+          "temperature": "TEMP",
+          "salinity": "SALN",
+          "u_current": "UVEL",
+          "v_current": "VVEL",
+          "sea_surface_height": "SSH",
+          "mixed_layer_depth": "MLD",
+          "tropical_cyclone_heat_potential": "TCHP"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "depth": "meters",
+          "depth_positive": "down"
+        }
+      }
+    },
+    {
+      "latitude": 10.029999732971191,
+      "longitude": 70.04000091552734,
+      "depth": null,
+      "pressure": 10.0,
+      "time": "2026-09-20T00:00:00.000000000",
+      "temperature": 28.799999237060547,
+      "salinity": 35.099998474121094,
+      "u_current": null,
+      "v_current": null,
+      "sea_surface_height": null,
+      "mixed_layer_depth": null,
+      "tropical_cyclone_heat_potential": null,
+      "metadata": {
+        "source": "Synthetic",
+        "dataset_name": "Synthetic Argo Demonstration Dataset",
+        "format": "NetCDF",
+        "description": "Synthetic Argo-like dataset for prototype demonstration",
+        "units": {
+          "pressure": "dbar",
+          "temperature": "degree_Celsius",
+          "salinity": "psu",
+          "latitude": "degrees_north",
+          "longitude": "degrees_east"
+        },
+        "source_variables": {
+          "latitude": "LATITUDE",
+          "longitude": "LONGITUDE",
+          "pressure": "PRES",
+          "time": "JULD",
+          "temperature": "TEMP",
+          "salinity": "PSAL"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "pressure": "dbar"
+        }
+      }
+    },
+    {
+      "latitude": 10.5,
+      "longitude": 70.5,
+      "depth": null,
+      "pressure": 10.0,
+      "time": "2026-09-20T06:00:00.000000000",
+      "temperature": 28.700000762939453,
+      "salinity": 35.099998474121094,
+      "u_current": null,
+      "v_current": null,
+      "sea_surface_height": null,
+      "mixed_layer_depth": null,
+      "tropical_cyclone_heat_potential": null,
+      "metadata": {
+        "source": "Synthetic",
+        "dataset_name": "Synthetic Argo Demonstration Dataset",
+        "format": "NetCDF",
+        "description": "Synthetic Argo-like dataset for prototype demonstration",
+        "units": {
+          "pressure": "dbar",
+          "temperature": "degree_Celsius",
+          "salinity": "psu",
+          "latitude": "degrees_north",
+          "longitude": "degrees_east"
+        },
+        "source_variables": {
+          "latitude": "LATITUDE",
+          "longitude": "LONGITUDE",
+          "pressure": "PRES",
+          "time": "JULD",
+          "temperature": "TEMP",
+          "salinity": "PSAL"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "pressure": "dbar"
+        }
+      }
+    },
+    {
+      "latitude": 11.0,
+      "longitude": 71.0,
+      "depth": null,
+      "pressure": 10.0,
+      "time": "2026-09-20T12:00:00.000000000",
+      "temperature": 28.600000381469727,
+      "salinity": 35.099998474121094,
+      "u_current": null,
+      "v_current": null,
+      "sea_surface_height": null,
+      "mixed_layer_depth": null,
+      "tropical_cyclone_heat_potential": null,
+      "metadata": {
+        "source": "Synthetic",
+        "dataset_name": "Synthetic Argo Demonstration Dataset",
+        "format": "NetCDF",
+        "description": "Synthetic Argo-like dataset for prototype demonstration",
+        "units": {
+          "pressure": "dbar",
+          "temperature": "degree_Celsius",
+          "salinity": "psu",
+          "latitude": "degrees_north",
+          "longitude": "degrees_east"
+        },
+        "source_variables": {
+          "latitude": "LATITUDE",
+          "longitude": "LONGITUDE",
+          "pressure": "PRES",
+          "time": "JULD",
+          "temperature": "TEMP",
+          "salinity": "PSAL"
+        },
+        "coordinate_conventions": {
+          "latitude": "degrees_north",
+          "longitude": "degrees_east",
+          "pressure": "dbar"
+        }
+      }
+    }
+  ]
+}

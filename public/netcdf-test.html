@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <title>Person 2 — Data Adapter Test</title>
+
+  <style>
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background: #111827;
+      color: white;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .box {
+      background: #1f2937;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+
+    .success {
+      background: #065f46;
+    }
+
+    .error {
+      background: #7f1d1d;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <h1>Person 2 — Data Adapter Test</h1>
+
+
+  <div id="status" class="box">
+    Loading...
+  </div>
+
+
+  <div id="output"></div>
+
+
+  <script type="module">
+
+    import {
+      adaptGridDataset
+    } from "/src/data/dataAdapter.js";
+
+
+    const status =
+      document.getElementById("status");
+
+    const output =
+      document.getElementById("output");
+
+
+    async function runTest() {
+
+      try {
+
+        // --------------------------------------------------
+        // LOAD JSON
+        // --------------------------------------------------
+
+        status.textContent =
+          "Loading ocean_grid.json...";
+
+
+        const response =
+          await fetch(
+            "/data/ocean_grid.json"
+          );
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            `HTTP error: ${response.status}`
+          );
+
+        }
+
+
+        const rawDataset =
+          await response.json();
+
+
+        // --------------------------------------------------
+        // ADAPT DATASET
+        // --------------------------------------------------
+
+        status.textContent =
+          "Adapting grid dataset...";
+
+
+        const oceanData =
+          adaptGridDataset(rawDataset);
+
+
+        // --------------------------------------------------
+        // TEST VALUES
+        // --------------------------------------------------
+
+        const depthIndex = 0;
+
+        const latIndex = 0;
+
+        const lonIndex = 0;
+
+
+        const temperature =
+          oceanData.getTemperature(
+            depthIndex,
+            latIndex,
+            lonIndex
+          );
+
+
+        const salinity =
+          oceanData.getSalinity(
+            depthIndex,
+            latIndex,
+            lonIndex
+          );
+
+
+        const u =
+          oceanData.getUCurrent(
+            depthIndex,
+            latIndex,
+            lonIndex
+          );
+
+
+        const v =
+          oceanData.getVCurrent(
+            depthIndex,
+            latIndex,
+            lonIndex
+          );
+
+
+        // --------------------------------------------------
+        // DISPLAY
+        // --------------------------------------------------
+
+        status.className =
+          "box success";
+
+
+        status.textContent =
+          "SUCCESS — Grid adapter is working.";
+
+
+        output.innerHTML = `
+
+          <div class="box">
+
+            <h2>Grid Information</h2>
+
+            <pre>
+Depth levels: ${oceanData.depth.length}
+
+Latitude points: ${oceanData.latitude.length}
+
+Longitude points: ${oceanData.longitude.length}
+
+Depth range:
+${oceanData.depth[0]} m → ${
+  oceanData.depth[
+    oceanData.depth.length - 1
+  ]
+} m
+
+Latitude range:
+${oceanData.latitude[0]}° → ${
+  oceanData.latitude[
+    oceanData.latitude.length - 1
+  ]
+}°
+
+Longitude range:
+${oceanData.longitude[0]}° → ${
+  oceanData.longitude[
+    oceanData.longitude.length - 1
+  ]
+}°
+            </pre>
+
+          </div>
+
+
+          <div class="box">
+
+            <h2>Sample Grid Point</h2>
+
+            <pre>
+Depth index: ${depthIndex}
+
+Latitude index: ${latIndex}
+
+Longitude index: ${lonIndex}
+
+Depth:
+${oceanData.depth[depthIndex]} m
+
+Latitude:
+${oceanData.latitude[latIndex]}°
+
+Longitude:
+${oceanData.longitude[lonIndex]}°
+
+Temperature:
+${temperature}
+
+Salinity:
+${salinity}
+
+U current:
+${u} m/s
+
+V current:
+${v} m/s
+            </pre>
+
+          </div>
+
+        `;
+
+      }
+
+      catch (error) {
+
+        status.className =
+          "box error";
+
+
+        status.textContent =
+          "ERROR";
+
+
+        output.innerHTML =
+          `<pre>${error.stack}</pre>`;
+
+
+        console.error(error);
+
+      }
+
+    }
+
+
+    runTest();
+
+  </script>
+
+</body>
+
+</html>

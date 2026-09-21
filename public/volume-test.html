@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Person 2 — Volume Conversion Test</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: Arial, sans-serif;
+            background: #071b2d;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .box {
+            background: #123451;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+        }
+
+        .success {
+            background: #159447;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #a83232;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Person 2 — Ocean Volume Conversion Test</h1>
+
+    <div id="status" class="box">
+        Loading...
+    </div>
+
+    <div id="output"></div>
+
+    <script type="module">
+
+        import { loadOceanData } from "/src/data/dataService.js";
+        import { gridToVolume } from "/src/data/gridToVolume.js";
+
+        async function runTest() {
+
+            const status = document.getElementById("status");
+            const output = document.getElementById("output");
+
+            try {
+
+                status.innerHTML = "Loading ocean grid...";
+
+                // 1. Load our real dataset
+                const dataset = await loadOceanData();
+
+                status.innerHTML = "Ocean grid loaded successfully.";
+
+                // 2. Convert grid → volume
+                const volume = gridToVolume(dataset);
+
+                // 3. Display information
+                output.innerHTML = `
+                    <div class="box">
+                        <h2>Grid</h2>
+                        <pre>
+Depth levels: ${dataset.depth.length}
+Latitude points: ${dataset.latitude.length}
+Longitude points: ${dataset.longitude.length}
+                        </pre>
+                    </div>
+
+                    <div class="box">
+                        <h2>Volume</h2>
+                        <pre>
+Width: ${volume.width}
+Height: ${volume.height}
+Depth: ${volume.depth}
+
+Total voxels:
+${volume.width * volume.height * volume.depth}
+                        </pre>
+                    </div>
+
+                    <div class="box">
+                        <h2>Temperature</h2>
+                        <pre>
+Minimum: ${volume.temperature.min}
+Maximum: ${volume.temperature.max}
+
+Data array length:
+${volume.temperature.data.length}
+                        </pre>
+                    </div>
+
+                    <div class="box">
+                        <h2>Salinity</h2>
+                        <pre>
+Minimum: ${volume.salinity.min}
+Maximum: ${volume.salinity.max}
+
+Data array length:
+${volume.salinity.data.length}
+                        </pre>
+                    </div>
+
+                    <div class="box">
+                        <h2>Currents</h2>
+                        <pre>
+U-current array length:
+${volume.uCurrent.data.length}
+
+V-current array length:
+${volume.vCurrent.data.length}
+                        </pre>
+                    </div>
+                `;
+
+            } catch (error) {
+
+                status.className = "error";
+
+                status.innerHTML = `
+                    ERROR:
+                    ${error.message}
+                `;
+
+                console.error(error);
+            }
+        }
+
+        runTest();
+
+    </script>
+
+</body>
+</html>
