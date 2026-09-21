@@ -1,0 +1,37 @@
+# Local-development stack: PostgreSQL + PostGIS only.
+# Backend and frontend services will be added later.
+#
+# Usage:
+#   copy .env.example .env      (Windows)   |   cp .env.example .env   (Linux/macOS)
+#   docker compose up -d db
+#
+# NOTE: scripts in /docker-entrypoint-initdb.d run ONLY when the data volume is
+# empty (first start). Editing the SQL files later has no effect on an existing
+# volume. To wipe the data and re-run the init scripts:
+#   docker compose down -v && docker compose up -d db
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ocean_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ocean_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Executed in filename order on first initialisation.
+      - ./db/init/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/init/02_indexes.sql:/docker-entrypoint-initdb.d/02_indexes.sql:ro
+      - ./db/seed/03_seed.sql:/docker-entrypoint-initdb.d/03_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
