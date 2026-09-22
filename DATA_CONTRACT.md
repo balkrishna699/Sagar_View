@@ -26,10 +26,17 @@
 
    | Endpoint | Method | Params | Status |
    |----------|--------|--------|--------|
-   | `/data` | GET | `?time=ISO` `?minDepth=` `?maxDepth=` | ✅ Implemented (PR #2) |
+   | `/data` | GET | `?time=ISO` `?minDepth=` `?maxDepth=` | ✅ Implemented (PR #2, depth filtering PR #3) |
    | `/health` | GET | – | ✅ Implemented |
    | `/timeseries` | GET | `?lat=` `&lon=` | ⏳ Planned |
    | `/docs` | GET | – | ✅ Swagger UI |
+
+   ### Depth Filtering (Day 2 — PR #3)
+   - `minDepth` (float, ≥ 0): Keep only depth levels ≥ this value (metres)
+   - `maxDepth` (float, ≥ 0): Keep only depth levels ≤ this value (metres)
+   - Both are inclusive and optional (defaults to full range)
+   - Returns 400 if `minDepth > maxDepth` or no depth levels match
+   - Returns 422 for negative depth values
 
    ## Coordinate Convention (Person 1 ↔ Person 2)
 
