@@ -13,6 +13,8 @@ import { TimeSeriesManager } from './timeseries.js';
 import { TimeControls } from './timeControls.js';
 import { getState, setState, updateCameraPosition, getAvailableOptions } from './sceneState.js';
 import { DEFAULT_COLORMAP } from './colormaps.js';
+import { ProfileChart } from './profileChart.js';
+import { getAllInstruments } from './instrumentData.js';
 
 // ── Loading helpers ──────────────────────────────────────
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -79,11 +81,19 @@ colorbar.update(currentData.minTemp, currentData.maxTemp);
 const markerManager = new MarkerManager(oceanScene, currentData.grid);
 markerManager.setOceanData(currentData);
 
-// Demo markers with different instrument types
-markerManager.addMarker(15.25, 75.25, 100, { type: 'argo',   id: 'argo-demo-1' });
-markerManager.addMarker(15.50, 75.50, 50,  { type: 'glider', id: 'glider-demo-1' });
-markerManager.addMarker(15.75, 75.75, 200, { type: 'ctd',    id: 'ctd-demo-1' });
-markerManager.addMarker(15.40, 75.60, 150, { type: 'buoy',   id: 'buoy-demo-1' });
+// Person 2's instrument data — populate markers from instrument records
+const instruments = getAllInstruments();
+instruments.forEach(inst => {
+  markerManager.addMarker(inst.latitude, inst.longitude, inst.depth, {
+    type: inst.type,
+    id: inst.id,
+    metadata: { status: inst.status, measurements: inst.measurements },
+  });
+});
+console.log(`📍 Loaded ${instruments.length} instrument markers (Person 2 data)`);
+
+// Person 2's profile chart — opens on marker click
+const profileChart = new ProfileChart(container);
 
 new DepthSlider(container, currentData.grid, (depthIndex) => {
   setState({ currentDepthIndex: depthIndex });
@@ -152,5 +162,6 @@ window.fetchOceanData = fetchOceanData;
 window.timeSeriesManager = timeSeriesManager;
 window.renderOceanVolume = renderOceanVolume;
 window.sceneState = { getState, setState, getAvailableOptions };
+window.profileChart = profileChart;
 
 console.log('🌊 SAGAR Ocean Visualization initialized!');
