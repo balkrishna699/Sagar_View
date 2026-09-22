@@ -12,79 +12,83 @@ import { IsosurfaceRenderer } from './isosurfaceRenderer.js';
 import { TimeSeriesManager } from './timeseries.js';
 import { TimeControls } from './timeControls.js';
 
+// ── Bootstrap ──────────────────────────────────────────
 const container = document.getElementById('canvas-container');
 const oceanScene = new OceanScene(container);
 
-let mockData = generateMockOceanData();
-console.log('Mock data:', mockData);
+// ── Data: try real API first, fall back to mock ────────
+let oceanData;
+try {
+  const apiData = await fetchOceanData();
+  if (apiData && apiData.grid && apiData.temperature) {
+    oceanData = apiData;
+    console.log('✅ Using real API data');
+  }
+} catch (_) { /* fall through to mock */ }
 
-renderOceanVolume(oceanScene, mockData, 0);
+if (!oceanData) {
+  oceanData = generateMockOceanData();
+  console.log('ℹ️ Using mock data (backend unavailable)');
+}
 
-const markerManager = new MarkerManager(oceanScene, mockData.grid);
+// ── Time Series ────────────────────────────────────────
+const timeSeriesManager = new TimeSeriesManager(oceanData);
+let currentData = timeSeriesManager.getCurrentData();
+console.log(`⏱️ Time series loaded: ${timeSeriesManager.timesteps.length} steps`);
+
+// ── Initial render (single call) ──────────────────────
+renderOceanVolume(oceanScene, currentData, 0);
+
+// ── UI Controls ────────────────────────────────────────
+const colorbar = new Colorbar(container);
+colorbar.update(currentData.minTemp, currentData.maxTemp);
+
+const markerManager = new MarkerManager(oceanScene, currentData.grid);
 markerManager.addMarker(15.25, 75.25, 100);
 markerManager.addMarker(15.50, 75.50, 50);
 markerManager.addMarker(15.75, 75.75, 200);
 
-const colorbar = new Colorbar(container);
-colorbar.update(mockData.minTemp, mockData.maxTemp);
-
-new DepthSlider(container, mockData.grid.depth.length - 1, (depthIndex) => {
-  renderOceanVolume(oceanScene, mockData, depthIndex);
+new DepthSlider(container, currentData.grid, (depthIndex) => {
+  renderOceanVolume(oceanScene, currentData, depthIndex);
 });
 
+new TimeControls(container, timeSeriesManager);
+
+// ── Event wiring ───────────────────────────────────────
 eventBus.on('depthChanged', ({ depthIndex }) => {
-  renderOceanVolume(oceanScene, mockData, depthIndex);
+  renderOceanVolume(oceanScene, currentData, depthIndex);
 });
 
-startRenderLoop(oceanScene);
-
-window.oceanScene = oceanScene;
-window.mockData = mockData;
-window.renderOceanVolume = renderOceanVolume;
-window.markerManager = markerManager;
-window.colorbar = colorbar;
-window.eventBus = eventBus;
-window.fetchOceanData = fetchOceanData;
-
-console.log('🌊 SAGAR Ocean Visualization initialized!');
-console.log('Available globals: oceanScene, mockData, markerManager, colorbar, eventBus');
-
-setupDashboardBridge(oceanScene, mockData, renderOceanVolume);
-
-console.log('Dashboard bridge initialized');
-
-// Initialize time series
-const timeSeriesManager = new TimeSeriesManager(mockData);
-let currentData = timeSeriesManager.getCurrentData();
-
-console.log(`⏱️ Time series loaded: ${timeSeriesManager.timesteps.length} steps`);
-
-// Render initial data
-renderOceanVolume(oceanScene, currentData, 0);
-colorbar.update(currentData.minTemp, currentData.maxTemp);
-
-// Listen for time navigation
 window.addEventListener('timeIndexChanged', (e) => {
   const { timeIndex, timestamp } = e.detail;
   currentData = timeSeriesManager.getDataAtIndex(timeIndex);
-  console.log(`⏱️ Time: ${timestamp}`);
-  
-  // Re-render with new time data
   renderOceanVolume(oceanScene, currentData, 0);
+  colorbar.update(currentData.minTemp, currentData.maxTemp);
   eventBus.emit('timeChanged', { timeIndex, timestamp });
 });
 
-// Expose for testing
-window.timeSeriesManager = timeSeriesManager;
+// ── Dashboard bridge ───────────────────────────────────
+setupDashboardBridge(oceanScene, currentData, renderOceanVolume);
 
+// ── Isosurfaces (non-blocking) ─────────────────────────
 const isosurfaceRenderer = new IsosurfaceRenderer(oceanScene);
+isosurfaceRenderer.loadIsosurfaces(0).catch(() => {});   // fire & forget
 
-// Load initial isosurfaces (if files exist)
-await isosurfaceRenderer.loadIsosurfaces(0);
-
-// Animate when time changes
 eventBus.on('timeChanged', async ({ timeIndex }) => {
   await isosurfaceRenderer.animateToTimeIndex(timeIndex);
 });
 
-new TimeControls(container, timeSeriesManager);
+// ── Render loop ────────────────────────────────────────
+startRenderLoop(oceanScene);
+
+// ── Dev globals ────────────────────────────────────────
+window.oceanScene = oceanScene;
+window.oceanData = currentData;
+window.markerManager = markerManager;
+window.colorbar = colorbar;
+window.eventBus = eventBus;
+window.fetchOceanData = fetchOceanData;
+window.timeSeriesManager = timeSeriesManager;
+window.renderOceanVolume = renderOceanVolume;
+
+console.log('🌊 SAGAR Ocean Visualization initialized!');

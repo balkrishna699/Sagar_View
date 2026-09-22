@@ -1,29 +1,53 @@
+import { setVerticalExaggeration, getVerticalExaggeration } from './coordinates.js';
+import { eventBus } from './eventBus.js';
+
 export class DepthSlider {
-  constructor(container, maxDepthIndex, onDepthChange) {
+  constructor(container, grid, onDepthChange) {
     this.onDepthChange = onDepthChange;
-    this.maxDepthIndex = maxDepthIndex;
-    
-    const html = `
-      <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-                  background: white; padding: 16px; border-radius: 8px; 
-                  box-shadow: 0 2px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 300px;">
-        <label style="display: block; margin-bottom: 10px; font-size: 14px; font-weight: 600; color: #0b0b0b;">
-          Depth: <span id="depthValueLabel">0</span>m
-        </label>
-        <input type="range" id="depthSlider" min="0" max="${maxDepthIndex}" value="0" 
-               style="width: 100%; cursor: pointer; height: 6px;">
-      </div>
+    this.grid = grid;
+    const maxDepthIndex = grid.depth.length - 1;
+
+    const panel = document.createElement('div');
+    panel.className = 'ctrl-panel';
+    panel.style.cssText = 'bottom: 16px; left: 50%; transform: translateX(-50%); min-width: 340px;';
+    panel.innerHTML = `
+      <label>
+        Depth: <span id="depthValueLabel" style="color: #c8dae8; font-weight: 400; text-transform: none;">${grid.depth[0]}</span>m
+      </label>
+      <input type="range" id="depthSlider" min="0" max="${maxDepthIndex}" value="0"
+             style="margin-bottom: 12px;">
+
+      <label>
+        Z Exaggeration: <span id="exagLabel" style="color: #c8dae8; font-weight: 400; text-transform: none;">${getVerticalExaggeration().toFixed(1)}×</span>
+      </label>
+      <input type="range" id="exagSlider" min="1" max="50" value="${getVerticalExaggeration() * 10}" step="1">
     `;
-    
-    container.insertAdjacentHTML('beforeend', html);
-    
+
+    container.appendChild(panel);
+
+    // Depth slider
     document.getElementById('depthSlider').addEventListener('input', (e) => {
       const depthIndex = parseInt(e.target.value);
-      // Assume 50m per step (adjust based on your grid.depth)
-      document.getElementById('depthValueLabel').textContent = depthIndex * 50;
-      
+      const depthMeters = this.grid.depth[depthIndex] ?? depthIndex * 50;
+      document.getElementById('depthValueLabel').textContent = depthMeters;
+
       if (this.onDepthChange) {
         this.onDepthChange(depthIndex);
+      }
+    });
+
+    // Vertical exaggeration slider
+    document.getElementById('exagSlider').addEventListener('input', (e) => {
+      const factor = parseInt(e.target.value) / 10;
+      setVerticalExaggeration(factor);
+      document.getElementById('exagLabel').textContent = `${factor.toFixed(1)}×`;
+
+      // Re-render at current depth
+      const currentDepthIndex = parseInt(document.getElementById('depthSlider').value);
+      eventBus.emit('exaggerationChanged', { factor });
+
+      if (this.onDepthChange) {
+        this.onDepthChange(currentDepthIndex);
       }
     });
   }

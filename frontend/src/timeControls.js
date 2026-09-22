@@ -1,58 +1,65 @@
 export class TimeControls {
   constructor(container, timeSeriesManager) {
-    const html = `
-      <div style="position: absolute; top: 20px; left: 20px; 
-                  background: white; padding: 16px; border-radius: 8px; 
-                  box-shadow: 0 2px 12px rgba(0,0,0,0.15); z-index: 100;">
-        <label style="display: block; margin-bottom: 10px; font-size: 14px; font-weight: 600;">
-          Time: <span id="timeLabel">--:--</span>
-        </label>
-        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-          <button id="playBtn" style="padding: 8px 12px; background: #2a78d6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            ▶ Play
-          </button>
-          <button id="pauseBtn" style="padding: 8px 12px; background: #888; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            ⏸ Pause
-          </button>
-          <button id="resetBtn" style="padding: 8px 12px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            ↺ Reset
-          </button>
-        </div>
-        <input type="range" id="timeScrubber" min="0" max="9" value="0" 
-               style="width: 200px; cursor: pointer;">
+    const panel = document.createElement('div');
+    panel.className = 'ctrl-panel';
+    panel.style.cssText = 'top: 52px; left: 16px; min-width: 220px;';
+    panel.innerHTML = `
+      <label>
+        Time: <span id="timeLabel" style="color: #c8dae8; font-weight: 400; text-transform: none; letter-spacing: 0;">--:--</span>
+      </label>
+      <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+        <button id="playBtn">▶ Play</button>
+        <button id="pauseBtn">⏸ Pause</button>
+        <button id="resetBtn">↺ Reset</button>
       </div>
+      <input type="range" id="timeScrubber" min="0" max="${timeSeriesManager.timesteps.length - 1}" value="0">
     `;
-    
-    container.insertAdjacentHTML('beforeend', html);
-    
+
+    container.appendChild(panel);
+
     // Wire up buttons
     document.getElementById('playBtn').addEventListener('click', () => {
       timeSeriesManager.play();
-      console.log('⏱️ Playing...');
+      document.getElementById('playBtn').classList.add('active');
+      document.getElementById('pauseBtn').classList.remove('active');
     });
-    
+
     document.getElementById('pauseBtn').addEventListener('click', () => {
       timeSeriesManager.pause();
-      console.log('⏱️ Paused');
+      document.getElementById('pauseBtn').classList.add('active');
+      document.getElementById('playBtn').classList.remove('active');
     });
-    
+
     document.getElementById('resetBtn').addEventListener('click', () => {
+      timeSeriesManager.pause();
       timeSeriesManager.jumpToIndex(0);
       document.getElementById('timeScrubber').value = 0;
+      document.getElementById('playBtn').classList.remove('active');
+      document.getElementById('pauseBtn').classList.remove('active');
+      const data = timeSeriesManager.getCurrentData();
+      document.getElementById('timeLabel').textContent = new Date(data.time).toLocaleTimeString();
     });
-    
+
     // Scrubber
     document.getElementById('timeScrubber').addEventListener('input', (e) => {
       timeSeriesManager.pause();
       const data = timeSeriesManager.jumpToIndex(parseInt(e.target.value));
       document.getElementById('timeLabel').textContent = new Date(data.time).toLocaleTimeString();
+      document.getElementById('playBtn').classList.remove('active');
+      document.getElementById('pauseBtn').classList.remove('active');
     });
-    
+
     // Update label on time change
     window.addEventListener('timeIndexChanged', (e) => {
-      document.getElementById('timeLabel').textContent = 
+      document.getElementById('timeLabel').textContent =
         new Date(e.detail.timestamp).toLocaleTimeString();
       document.getElementById('timeScrubber').value = e.detail.timeIndex;
     });
+
+    // Show initial time
+    const initData = timeSeriesManager.getCurrentData();
+    if (initData?.time) {
+      document.getElementById('timeLabel').textContent = new Date(initData.time).toLocaleTimeString();
+    }
   }
 }

@@ -1,147 +1,204 @@
 import * as THREE from 'three';
 import { latLonDepthToScene } from './coordinates.js';
 
+/* ── Shared colormap (blue→red, HSL) ── */
+function oceanColormap(value, min, max) {
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const hue = 0.66 * (1 - t);           // 0.66 = blue, 0 = red
+  return new THREE.Color().setHSL(hue, 0.85, 0.5);
+}
+
+/* ── helpers ── */
+function clearNamed(scene, name) {
+  const obj = scene.getObjectByName(name);
+  if (!obj) return;
+  scene.remove(obj);
+  if (obj.geometry) obj.geometry.dispose();
+  if (obj.material) obj.material.dispose();
+  // InstancedMesh shares geometry/material, dispose only once
+  if (obj.isInstancedMesh) {
+    obj.geometry.dispose();
+    obj.material.dispose();
+  }
+}
+
 /**
- * Render ocean volume as colored point cloud
+ * Render ocean volume as instanced semi-transparent voxel cubes.
+ * Falls back to point cloud if the grid is very large (>50k cells).
+ *
  * @param {OceanScene} oceanScene
- * @param {object} oceanData - from API/mockData
- * @param {number} depthSliceIndex - 0 = surface, max = bottom
+ * @param {object}     oceanData  – { grid, temperature, minTemp, maxTemp, ... }
+ * @param {number}     depthSliceIndex – 0 = surface only, max = show all depths
  */
 export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0) {
   const scene = oceanScene.getScene();
-  
-  // Remove old volume
-  const oldVolume = scene.getObjectByName('oceanVolume');
-  if (oldVolume) {
-    scene.remove(oldVolume);
-    oldVolume.geometry?.dispose();
-    oldVolume.material?.dispose();
-  }
-  
+  clearNamed(scene, 'oceanVolume');
+
   const { grid, temperature, minTemp, maxTemp } = oceanData;
-  const [nDepth, nLat, nLon] = [grid.depth.length, grid.lat.length, grid.lon.length];
-  
-  const positions = [];
-  const colors = [];
-  
-  // Colormap: blue (cold) → red (warm)
-  const colormap = (value, min, max) => {
-    const normalized = Math.max(0, Math.min(1, (value - min) / (max - min)));
-    const hue = 0.66 * (1 - normalized); // 0.66=blue, 0=red
-    return new THREE.Color().setHSL(hue, 1, 0.5);
-  };
-  
-  // Render slices from surface to depthSliceIndex
-  for (let d = 0; d <= Math.min(depthSliceIndex, nDepth - 1); d++) {
+  const nDepth = grid.depth.length;
+  const nLat   = grid.lat.length;
+  const nLon   = grid.lon.length;
+  const maxD   = Math.min(depthSliceIndex, nDepth - 1);
+
+  const totalCells = (maxD + 1) * nLat * nLon;
+
+  // For very large grids fall back to lightweight points
+  if (totalCells > 50000) {
+    return _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon);
+  }
+
+  // ── Instanced voxel cubes ──
+  // Compute voxel size from grid spacing
+  const p0 = latLonDepthToScene(grid.lat[0], grid.lon[0], 0, grid);
+  const p1 = latLonDepthToScene(
+    grid.lat[Math.min(1, nLat - 1)],
+    grid.lon[Math.min(1, nLon - 1)],
+    grid.depth[Math.min(1, nDepth - 1)],
+    grid
+  );
+  const dx = nLat > 1 ? Math.abs(p1.x - p0.x) : 5;
+  const dy = nLon > 1 ? Math.abs(p1.y - p0.y) : 5;
+  const dz = nDepth > 1 ? Math.abs(p1.z - p0.z) : 5;
+
+  const boxGeo = new THREE.BoxGeometry(dx * 0.92, dy * 0.92, dz * 0.92);
+  const boxMat = new THREE.MeshPhongMaterial({
+    vertexColors: false,
+    transparent: true,
+    opacity: 0.72,
+    shininess: 40,
+    side: THREE.FrontSide,
+  });
+
+  const mesh = new THREE.InstancedMesh(boxGeo, boxMat, totalCells);
+  mesh.name = 'oceanVolume';
+
+  const dummy = new THREE.Object3D();
+  const color = new THREE.Color();
+  let idx = 0;
+
+  for (let d = 0; d <= maxD; d++) {
     for (let la = 0; la < nLat; la++) {
       for (let lo = 0; lo < nLon; lo++) {
-        const pos = latLonDepthToScene(
-          grid.lat[la],
-          grid.lon[lo],
-          grid.depth[d],
-          grid
-        );
-        
-        positions.push(pos.x, pos.y, pos.z);
-        
+        const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
+        dummy.position.copy(pos);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+
         const temp = temperature[d][la][lo];
-        const color = colormap(temp, minTemp, maxTemp);
-        colors.push(color.r, color.g, color.b);
+        oceanColormap(temp, minTemp, maxTemp);          // reuse function
+        color.copy(oceanColormap(temp, minTemp, maxTemp));
+        mesh.setColorAt(idx, color);
+        idx++;
       }
     }
   }
-  
-  // Create geometry
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
-  
-  // Points material
-  const material = new THREE.PointsMaterial({
-    size: 1.5,
-    vertexColors: true,
-    transparent: true,
-    sizeAttenuation: true
-  });
-  
-  const volume = new THREE.Points(geometry, material);
-  volume.name = 'oceanVolume';
-  scene.add(volume);
-  
-  console.log(`✅ Rendered ${positions.length / 3} points (depth 0–${depthSliceIndex})`);
+
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor.needsUpdate  = true;
+  scene.add(mesh);
+
+  console.log(`✅ Rendered ${totalCells} voxels (depth 0–${maxD})`);
 }
 
-export default { renderOceanVolume };
+/* ── Lightweight fallback for big grids ── */
+function _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon) {
+  const positions = [];
+  const colors    = [];
+
+  for (let d = 0; d <= maxD; d++) {
+    for (let la = 0; la < nLat; la++) {
+      for (let lo = 0; lo < nLon; lo++) {
+        const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
+        positions.push(pos.x, pos.y, pos.z);
+        const c = oceanColormap(temperature[d][la][lo], minTemp, maxTemp);
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(colors), 3));
+
+  const mat = new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, sizeAttenuation: true });
+  const pts = new THREE.Points(geo, mat);
+  pts.name = 'oceanVolume';
+  scene.add(pts);
+
+  console.log(`✅ Rendered ${positions.length / 3} points (fallback, depth 0–${maxD})`);
+}
 
 /**
- * Render with support for multiple variables (temperature, salinity, etc.)
+ * Multi-variable render (temperature / salinity / etc.)
  */
 export function renderOceanVolumeMultiVariable(
-  oceanScene, 
-  oceanData, 
+  oceanScene,
+  oceanData,
   depthSliceIndex = 0,
-  variable = 'temperature'  // 'temperature' or 'salinity'
+  variable = 'temperature'
 ) {
   const scene = oceanScene.getScene();
-  
-  const oldVolume = scene.getObjectByName('oceanVolume');
-  if (oldVolume) {
-    scene.remove(oldVolume);
-    oldVolume.geometry?.dispose();
-    oldVolume.material?.dispose();
-  }
-  
+  clearNamed(scene, 'oceanVolume');
+
   const { grid } = oceanData;
-  const data = oceanData[variable];  // Get temp or salinity
+  const data   = oceanData[variable];
   const minVal = variable === 'temperature' ? oceanData.minTemp : oceanData.minSal;
   const maxVal = variable === 'temperature' ? oceanData.maxTemp : oceanData.maxSal;
-  
-  const [nDepth, nLat, nLon] = [grid.depth.length, grid.lat.length, grid.lon.length];
-  
-  const positions = [];
-  const colors = [];
-  
-  const colormap = (value, min, max) => {
-    const normalized = Math.max(0, Math.min(1, (value - min) / (max - min)));
-    const hue = 0.66 * (1 - normalized);
-    return new THREE.Color().setHSL(hue, 1, 0.5);
-  };
-  
-  for (let d = 0; d <= Math.min(depthSliceIndex, nDepth - 1); d++) {
+
+  const nDepth = grid.depth.length;
+  const nLat   = grid.lat.length;
+  const nLon   = grid.lon.length;
+  const maxD   = Math.min(depthSliceIndex, nDepth - 1);
+  const totalCells = (maxD + 1) * nLat * nLon;
+
+  // ── Instanced cubes (same approach) ──
+  const p0 = latLonDepthToScene(grid.lat[0], grid.lon[0], 0, grid);
+  const p1 = latLonDepthToScene(
+    grid.lat[Math.min(1, nLat - 1)],
+    grid.lon[Math.min(1, nLon - 1)],
+    grid.depth[Math.min(1, nDepth - 1)],
+    grid
+  );
+  const dx = nLat > 1 ? Math.abs(p1.x - p0.x) : 5;
+  const dy = nLon > 1 ? Math.abs(p1.y - p0.y) : 5;
+  const dz = nDepth > 1 ? Math.abs(p1.z - p0.z) : 5;
+
+  const boxGeo = new THREE.BoxGeometry(dx * 0.92, dy * 0.92, dz * 0.92);
+  const boxMat = new THREE.MeshPhongMaterial({
+    transparent: true,
+    opacity: 0.72,
+    shininess: 40,
+    side: THREE.FrontSide,
+  });
+
+  const mesh = new THREE.InstancedMesh(boxGeo, boxMat, totalCells);
+  mesh.name = 'oceanVolume';
+
+  const dummy = new THREE.Object3D();
+  const color = new THREE.Color();
+  let idx = 0;
+
+  for (let d = 0; d <= maxD; d++) {
     for (let la = 0; la < nLat; la++) {
       for (let lo = 0; lo < nLon; lo++) {
-        const pos = latLonDepthToScene(
-          grid.lat[la],
-          grid.lon[lo],
-          grid.depth[d],
-          grid
-        );
-        
-        positions.push(pos.x, pos.y, pos.z);
-        
-        const value = data[d][la][lo];
-        const color = colormap(value, minVal, maxVal);
-        colors.push(color.r, color.g, color.b);
+        const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
+        dummy.position.copy(pos);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+
+        color.copy(oceanColormap(data[d][la][lo], minVal, maxVal));
+        mesh.setColorAt(idx, color);
+        idx++;
       }
     }
   }
-  
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
-  
-  const material = new THREE.PointsMaterial({
-    size: 1.5,
-    vertexColors: true,
-    transparent: true,
-    sizeAttenuation: true
-  });
 
-  const volume = new THREE.Points(geometry, material);
-  volume.name = 'oceanVolume';
-  scene.add(volume);
-  
-  console.log(`✅ Rendered ${variable} (${positions.length / 3} points)`);
-  
-  return { minVal, maxVal };  // Return for colorbar update
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor.needsUpdate  = true;
+  scene.add(mesh);
+
+  console.log(`✅ Rendered ${variable} (${totalCells} voxels)`);
+  return { minVal, maxVal };
 }
+
+export default { renderOceanVolume, renderOceanVolumeMultiVariable };
