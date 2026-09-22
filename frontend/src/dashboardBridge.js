@@ -62,7 +62,7 @@ export function setupDashboardBridge(oceanScene, initialData, renderFn, colorbar
     // Update colorbar to match
     if (colorbar && result) {
       const unit = VARIABLE_UNITS[variable] || '';
-      colorbar.update(result.minVal, result.maxVal, unit);
+      colorbar.update(result.minVal, result.maxVal, unit, variable);
       colorbar.setColormap(colormap);
     }
   });

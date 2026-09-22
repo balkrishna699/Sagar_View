@@ -7,11 +7,21 @@ export class Colorbar {
     const wrapper = document.createElement('div');
     wrapper.className = 'ctrl-panel';
     wrapper.style.cssText = `
-      top: 52px; right: 16px;
+      top: 74px; right: 16px;
       display: flex; align-items: stretch; gap: 6px;
       padding: 10px 12px;
       min-height: 200px;
     `;
+
+    this.varNameLabel = document.createElement('div');
+    this.varNameLabel.style.cssText = `
+      position: absolute; top: -22px; left: 0; right: 0;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+      color: #6ea8d4; text-transform: uppercase; white-space: nowrap;
+    `;
+    this.varNameLabel.textContent = 'TEMPERATURE';
+    wrapper.style.position = wrapper.style.position || 'absolute';
+    wrapper.appendChild(this.varNameLabel);
 
     const canvas = document.createElement('canvas');
     canvas.width = 20;
@@ -50,10 +60,13 @@ export class Colorbar {
     this.draw();
   }
 
-  update(minValue, maxValue, unit = '°C') {
+  update(minValue, maxValue, unit = '°C', variableName) {
     this.minValue = minValue;
     this.maxValue = maxValue;
     this.unitLabel.textContent = unit;
+    if (variableName) {
+      this.varNameLabel.textContent = variableName.toUpperCase();
+    }
     this.draw();
   }
 
