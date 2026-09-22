@@ -50,13 +50,13 @@ export function latLonDepthToScene(lat, lon, depth, grid) {
 
   const { minLat, maxLat, minLon, maxLon, maxDepth } = getExtents(grid);
 
-  // Normalize lat/lon to [0, 100]
-  const x = maxLat === minLat ? 50 : ((lat - minLat) / (maxLat - minLat)) * 100;
-  const y = maxLon === minLon ? 50 : ((lon - minLon) / (maxLon - minLon)) * 100;
+  // Map Lon to X (East/West) and Lat to Z (North/South)
+  const x = maxLon === minLon ? 50 : ((lon - minLon) / (maxLon - minLon)) * 100;
+  const z = maxLat === minLat ? 50 : ((lat - minLat) / (maxLat - minLat)) * 100;
 
-  // Depth: surface (0 m) → z = 50 * exaggeration, bottom → z = 0
-  const zRange = 50 * verticalExaggeration;
-  const z = maxDepth === 0 ? zRange : (1 - depth / maxDepth) * zRange;
+  // Depth: surface (0 m) -> y = 50 * exaggeration, bottom -> y = 0
+  const yRange = 50 * verticalExaggeration;
+  const y = maxDepth === 0 ? yRange : (1 - depth / maxDepth) * yRange;
 
   return new THREE.Vector3(x, y, z);
 }
@@ -67,11 +67,11 @@ export function latLonDepthToScene(lat, lon, depth, grid) {
 export function sceneToLatLonDepth(pos, grid) {
   const { minLat, maxLat, minLon, maxLon, maxDepth } = getExtents(grid);
 
-  const zRange = 50 * verticalExaggeration;
+  const yRange = 50 * verticalExaggeration;
 
   return {
-    lat:   minLat + (pos.x / 100) * (maxLat - minLat),
-    lon:   minLon + (pos.y / 100) * (maxLon - minLon),
-    depth: (1 - pos.z / zRange) * maxDepth
+    lon:   minLon + (pos.x / 100) * (maxLon - minLon),
+    lat:   minLat + (pos.z / 100) * (maxLat - minLat),
+    depth: (1 - pos.y / yRange) * maxDepth
   };
 }

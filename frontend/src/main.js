@@ -15,6 +15,23 @@ import { getState, setState, updateCameraPosition, getAvailableOptions } from '.
 import { DEFAULT_COLORMAP } from './colormaps.js';
 import { ProfileChart } from './profileChart.js';
 import { getAllInstruments } from './instrumentData.js';
+import { VariableSelector } from './variableselector.js';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+
+// ── Performance Metrics ──────────────────────────────────
+const stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.top = 'auto';
+stats.domElement.style.bottom = '20px';
+stats.domElement.style.left = '20px';
+stats.domElement.style.zIndex = '500';
+stats.domElement.style.borderRadius = '8px';
+stats.domElement.style.overflow = 'hidden';
+stats.domElement.style.filter = 'invert(0.9) hue-rotate(180deg)';
+stats.domElement.style.transform = 'scale(1.5)';
+stats.domElement.style.transformOrigin = 'bottom left';
+document.body.appendChild(stats.domElement);
 
 // ── Loading helpers ──────────────────────────────────────
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -77,7 +94,7 @@ renderOceanVolume(oceanScene, currentData, 0, DEFAULT_COLORMAP);
 // ── UI Controls ────────────────────────────────────────
 const colorbar = new Colorbar(container);
 colorbar.update(currentData.minTemp, currentData.maxTemp);
-
+const variableSelector = new VariableSelector(container);
 const markerManager = new MarkerManager(oceanScene, currentData.grid);
 markerManager.setOceanData(currentData);
 
@@ -99,6 +116,19 @@ new DepthSlider(container, currentData.grid, (depthIndex) => {
   setState({ currentDepthIndex: depthIndex });
   const { currentVariable, currentColormap } = getState();
   renderOceanVolumeMultiVariable(oceanScene, currentData, depthIndex, currentVariable, currentColormap);
+});
+
+// Link State Changes to Colorbar and Render updates
+eventBus.on('colorbarChanged', ({ variable, colormap }) => {
+  const minVal = variable === 'temperature' ? currentData.minTemp : currentData.minSal;
+  const maxVal = variable === 'temperature' ? currentData.maxTemp : currentData.maxSal;
+  const unit = variable === 'temperature' ? 'Temperature (°C)' : 'Salinity (PSU)';
+  
+  colorbar.setColormap(colormap);
+  colorbar.update(minVal, maxVal, unit);
+  
+  const { currentDepthIndex } = getState();
+  renderOceanVolumeMultiVariable(oceanScene, currentData, currentDepthIndex, variable, colormap);
 });
 
 new TimeControls(container, timeSeriesManager);
@@ -139,6 +169,7 @@ eventBus.on('timeChanged', async ({ timeIndex }) => {
 // ── Render loop (with camera state sync) ───────────────
 function enhancedRenderLoop() {
   requestAnimationFrame(enhancedRenderLoop);
+  stats.update();
   updateCameraPosition(oceanScene.getCamera());
   oceanScene.render();
 }

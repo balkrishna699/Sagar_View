@@ -6,8 +6,8 @@ export class OceanScene {
     this.container = container;
     this.scene = new THREE.Scene();
 
-    // Deep ocean gradient background
-    this.scene.background = new THREE.Color(0x0a1628);
+    // Deep ocean holographic background
+    this.scene.background = new THREE.Color(0x02050a);
 
     // ── Camera ──
     const width  = container.clientWidth;
@@ -16,8 +16,9 @@ export class OceanScene {
 
     // Use PerspectiveCamera for proper 3D depth perception
     this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 2000);
-    this.camera.position.set(120, 100, 180);
-    this.camera.lookAt(50, 25, 25);
+    // Position camera to look down at the ocean block from a distance
+    this.camera.position.set(200, 150, 250);
+    this.camera.lookAt(50, 25, 50);
 
     // ── Renderer ──
     this.renderer = new THREE.WebGLRenderer({
@@ -78,6 +79,11 @@ export class OceanScene {
     gridHelper.rotation.x = Math.PI / 2;
     this.scene.add(gridHelper);
 
+    // ── Massive AxesHelper for Orientation ──
+    const axesHelper = new THREE.AxesHelper(100);
+    // Red=X(Lon), Green=Y(Depth), Blue=Z(Lat)
+    this.scene.add(axesHelper);
+
     // ── Axis labels ──
     this._addAxisLabels();
 
@@ -85,7 +91,7 @@ export class OceanScene {
     this._addBoundingBox();
 
     // ── Fog for depth effect ──
-    this.scene.fog = new THREE.FogExp2(0x0a1628, 0.003);
+    this.scene.fog = new THREE.FogExp2(0x02050a, 0.0035);
 
     // ── Handle resize ──
     window.addEventListener('resize', () => this.onWindowResize());
@@ -121,15 +127,16 @@ export class OceanScene {
   }
 
   _addBoundingBox() {
-    const boxGeo = new THREE.BoxGeometry(100, 100, 50);
+    // 100x100 for X(Lon)/Z(Lat) map, 50 for Y(Depth)
+    const boxGeo = new THREE.BoxGeometry(100, 50, 100);
     const edges = new THREE.EdgesGeometry(boxGeo);
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0x335577,
+      color: 0x00f0ff,
       transparent: true,
-      opacity: 0.35
+      opacity: 0.15
     });
     const wireframe = new THREE.LineSegments(edges, lineMat);
-    wireframe.position.set(50, 50, 25);
+    wireframe.position.set(50, 25, 50);
     wireframe.name = 'boundingBox';
     this.scene.add(wireframe);
   }

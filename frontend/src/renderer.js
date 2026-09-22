@@ -4,15 +4,15 @@ import { getColor, DEFAULT_COLORMAP } from './colormaps.js';
 
 /* ── helpers ── */
 function clearNamed(scene, name) {
-  const obj = scene.getObjectByName(name);
-  if (!obj) return;
-  scene.remove(obj);
-  if (obj.geometry) obj.geometry.dispose();
-  if (obj.material) obj.material.dispose();
-  // InstancedMesh shares geometry/material, dispose only once
-  if (obj.isInstancedMesh) {
-    obj.geometry.dispose();
-    obj.material.dispose();
+  let obj;
+  while ((obj = scene.getObjectByName(name))) {
+    scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) obj.material.dispose();
+    if (obj.isInstancedMesh) {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
   }
 }
 
@@ -55,13 +55,15 @@ export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0, co
   const dy = nLon > 1 ? Math.abs(p1.y - p0.y) : 5;
   const dz = nDepth > 1 ? Math.abs(p1.z - p0.z) : 5;
 
-  const boxGeo = new THREE.BoxGeometry(dx * 0.92, dy * 0.92, dz * 0.92);
-  const boxMat = new THREE.MeshPhongMaterial({
+  const boxGeo = new THREE.BoxGeometry(dx * 0.94, dy * 0.94, dz * 0.94);
+  const boxMat = new THREE.MeshStandardMaterial({
     vertexColors: false,
     transparent: true,
-    opacity: 0.72,
-    shininess: 40,
+    opacity: 0.15,
+    roughness: 0.1,
+    metalness: 0.5,
     side: THREE.FrontSide,
+    depthWrite: false, // Prevents self-occlusion artifacts
   });
 
   const mesh = new THREE.InstancedMesh(boxGeo, boxMat, totalCells);
@@ -71,7 +73,7 @@ export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0, co
   const color = new THREE.Color();
   let idx = 0;
 
-  for (let d = 0; d <= maxD; d++) {
+  for (let d = maxD; d >= 0; d--) {
     for (let la = 0; la < nLat; la++) {
       for (let lo = 0; lo < nLon; lo++) {
         const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
@@ -169,12 +171,16 @@ export function renderOceanVolumeMultiVariable(
   const dy = nLon > 1 ? Math.abs(p1.y - p0.y) : 5;
   const dz = nDepth > 1 ? Math.abs(p1.z - p0.z) : 5;
 
-  const boxGeo = new THREE.BoxGeometry(dx * 0.92, dy * 0.92, dz * 0.92);
-  const boxMat = new THREE.MeshPhongMaterial({
+  // Reverted back to 0.94 per user feedback
+  const boxGeo = new THREE.BoxGeometry(dx * 0.94, dy * 0.94, dz * 0.94);
+  const boxMat = new THREE.MeshStandardMaterial({
+    vertexColors: false,
     transparent: true,
-    opacity: 0.72,
-    shininess: 40,
+    opacity: 0.15,
+    roughness: 0.1,
+    metalness: 0.5,
     side: THREE.FrontSide,
+    depthWrite: false, // Prevents self-occlusion artifacts
   });
 
   const mesh = new THREE.InstancedMesh(boxGeo, boxMat, totalCells);
@@ -184,7 +190,7 @@ export function renderOceanVolumeMultiVariable(
   const color = new THREE.Color();
   let idx = 0;
 
-  for (let d = 0; d <= maxD; d++) {
+  for (let d = maxD; d >= 0; d--) {
     for (let la = 0; la < nLat; la++) {
       for (let lo = 0; lo < nLon; lo++) {
         const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
