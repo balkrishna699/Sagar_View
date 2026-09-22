@@ -113,6 +113,67 @@
 
     /* Scrollbar hide */
     ::-webkit-scrollbar { display: none; }
+
+    /* ── Loading overlay ── */
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 13, 24, 0.94);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(77, 184, 255, 0.15);
+      border-top-color: #4db8ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 14px;
+      color: #6ea8d4;
+      letter-spacing: 1px;
+      font-weight: 500;
+    }
+    .loading-sub {
+      font-size: 11px;
+      color: #3d6a8a;
+      margin-top: 6px;
+    }
+
+    /* ── Toast notification ── */
+    #toast {
+      position: absolute;
+      bottom: 80px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(10, 22, 40, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(77, 184, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: #a0d4f7;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -121,6 +182,16 @@
       <h1>🌊 SAGAR</h1>
       <span>Interactive 3D Ocean Visualization Platform</span>
     </div>
+
+    <!-- Loading overlay (hidden by main.js after data loads) -->
+    <div id="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Initializing Ocean Model…</div>
+      <div class="loading-sub" id="loading-status">Connecting to data source</div>
+    </div>
+
+    <!-- Toast for status messages -->
+    <div id="toast"></div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

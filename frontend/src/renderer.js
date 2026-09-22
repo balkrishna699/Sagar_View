@@ -1,12 +1,6 @@
 import * as THREE from 'three';
 import { latLonDepthToScene } from './coordinates.js';
-
-/* ── Shared colormap (blue→red, HSL) ── */
-function oceanColormap(value, min, max) {
-  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
-  const hue = 0.66 * (1 - t);           // 0.66 = blue, 0 = red
-  return new THREE.Color().setHSL(hue, 0.85, 0.5);
-}
+import { getColor, DEFAULT_COLORMAP } from './colormaps.js';
 
 /* ── helpers ── */
 function clearNamed(scene, name) {
@@ -29,8 +23,9 @@ function clearNamed(scene, name) {
  * @param {OceanScene} oceanScene
  * @param {object}     oceanData  – { grid, temperature, minTemp, maxTemp, ... }
  * @param {number}     depthSliceIndex – 0 = surface only, max = show all depths
+ * @param {string}     colormapName – colormap to use (default: ocean)
  */
-export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0) {
+export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0, colormapName = DEFAULT_COLORMAP) {
   const scene = oceanScene.getScene();
   clearNamed(scene, 'oceanVolume');
 
@@ -44,7 +39,7 @@ export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0) {
 
   // For very large grids fall back to lightweight points
   if (totalCells > 50000) {
-    return _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon);
+    return _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon, colormapName);
   }
 
   // ── Instanced voxel cubes ──
@@ -85,8 +80,7 @@ export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0) {
         mesh.setMatrixAt(idx, dummy.matrix);
 
         const temp = temperature[d][la][lo];
-        oceanColormap(temp, minTemp, maxTemp);          // reuse function
-        color.copy(oceanColormap(temp, minTemp, maxTemp));
+        color.copy(getColor(temp, minTemp, maxTemp, colormapName));
         mesh.setColorAt(idx, color);
         idx++;
       }
@@ -97,11 +91,11 @@ export function renderOceanVolume(oceanScene, oceanData, depthSliceIndex = 0) {
   mesh.instanceColor.needsUpdate  = true;
   scene.add(mesh);
 
-  console.log(`✅ Rendered ${totalCells} voxels (depth 0–${maxD})`);
+  console.log(`✅ Rendered ${totalCells} voxels (depth 0–${maxD}, colormap: ${colormapName})`);
 }
 
 /* ── Lightweight fallback for big grids ── */
-function _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon) {
+function _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, nLon, colormapName) {
   const positions = [];
   const colors    = [];
 
@@ -110,7 +104,7 @@ function _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, n
       for (let lo = 0; lo < nLon; lo++) {
         const pos = latLonDepthToScene(grid.lat[la], grid.lon[lo], grid.depth[d], grid);
         positions.push(pos.x, pos.y, pos.z);
-        const c = oceanColormap(temperature[d][la][lo], minTemp, maxTemp);
+        const c = getColor(temperature[d][la][lo], minTemp, maxTemp, colormapName);
         colors.push(c.r, c.g, c.b);
       }
     }
@@ -130,12 +124,19 @@ function _renderPoints(scene, grid, temperature, minTemp, maxTemp, maxD, nLat, n
 
 /**
  * Multi-variable render (temperature / salinity / etc.)
+ *
+ * @param {OceanScene} oceanScene
+ * @param {object}     oceanData
+ * @param {number}     depthSliceIndex
+ * @param {string}     variable – key in oceanData (e.g. 'temperature', 'salinity')
+ * @param {string}     colormapName
  */
 export function renderOceanVolumeMultiVariable(
   oceanScene,
   oceanData,
   depthSliceIndex = 0,
-  variable = 'temperature'
+  variable = 'temperature',
+  colormapName = DEFAULT_COLORMAP
 ) {
   const scene = oceanScene.getScene();
   clearNamed(scene, 'oceanVolume');
@@ -144,6 +145,11 @@ export function renderOceanVolumeMultiVariable(
   const data   = oceanData[variable];
   const minVal = variable === 'temperature' ? oceanData.minTemp : oceanData.minSal;
   const maxVal = variable === 'temperature' ? oceanData.maxTemp : oceanData.maxSal;
+
+  if (!data) {
+    console.warn(`⚠️ Variable "${variable}" not found in ocean data`);
+    return { minVal: 0, maxVal: 0 };
+  }
 
   const nDepth = grid.depth.length;
   const nLat   = grid.lat.length;
@@ -186,7 +192,7 @@ export function renderOceanVolumeMultiVariable(
         dummy.updateMatrix();
         mesh.setMatrixAt(idx, dummy.matrix);
 
-        color.copy(oceanColormap(data[d][la][lo], minVal, maxVal));
+        color.copy(getColor(data[d][la][lo], minVal, maxVal, colormapName));
         mesh.setColorAt(idx, color);
         idx++;
       }
@@ -197,7 +203,7 @@ export function renderOceanVolumeMultiVariable(
   mesh.instanceColor.needsUpdate  = true;
   scene.add(mesh);
 
-  console.log(`✅ Rendered ${variable} (${totalCells} voxels)`);
+  console.log(`✅ Rendered ${variable} (${totalCells} voxels, colormap: ${colormapName})`);
   return { minVal, maxVal };
 }
 

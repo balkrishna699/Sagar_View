@@ -1,5 +1,9 @@
+import { getCSS, DEFAULT_COLORMAP } from './colormaps.js';
+
 export class Colorbar {
   constructor(container) {
+    this.currentColormap = DEFAULT_COLORMAP;
+
     const wrapper = document.createElement('div');
     wrapper.className = 'ctrl-panel';
     wrapper.style.cssText = `
@@ -53,15 +57,23 @@ export class Colorbar {
     this.draw();
   }
 
+  /**
+   * Switch to a different colormap and redraw.
+   * @param {string} colormapName
+   */
+  setColormap(colormapName) {
+    this.currentColormap = colormapName;
+    this.draw();
+  }
+
   draw() {
-    const { ctx, canvas } = this;
+    const { ctx, canvas, currentColormap } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Gradient: top = warm (red), bottom = cold (blue)
+    // Draw gradient using the active colormap
     for (let i = 0; i < canvas.height; i++) {
-      const normalized = 1 - i / canvas.height;
-      const hue = 0.66 * (1 - normalized);
-      ctx.fillStyle = `hsl(${hue * 360}, 85%, 50%)`;
+      const t = 1 - i / canvas.height;   // top = max, bottom = min
+      ctx.fillStyle = getCSS(t, currentColormap);
       ctx.fillRect(0, i, canvas.width, 1);
     }
 
