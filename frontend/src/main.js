@@ -11,6 +11,8 @@ import { setupDashboardBridge } from './dashboardBridge.js';
 import { IsosurfaceRenderer } from './isosurfaceRenderer.js';
 import { TimeSeriesManager } from './timeseries.js';
 import { TimeControls } from './timeControls.js';
+import { VariableSelector } from './variableselector.js';
+import { MarkerPanel } from './markerpanel.js';
 import { getState, setState, updateCameraPosition, getAvailableOptions } from './sceneState.js';
 import { DEFAULT_COLORMAP } from './colormaps.js';
 
@@ -92,6 +94,9 @@ new DepthSlider(container, currentData.grid, (depthIndex) => {
 });
 
 new TimeControls(container, timeSeriesManager);
+// Person 3 dashboard controls
+const variableSelector = new VariableSelector(container);
+const markerPanel = new MarkerPanel(container);
 
 // ── Event wiring ───────────────────────────────────────
 eventBus.on('depthChanged', ({ depthIndex }) => {
@@ -147,6 +152,8 @@ window.oceanScene = oceanScene;
 window.oceanData = currentData;
 window.markerManager = markerManager;
 window.colorbar = colorbar;
+window.variableSelector = variableSelector;
+window.markerPanel = markerPanel;
 window.eventBus = eventBus;
 window.fetchOceanData = fetchOceanData;
 window.timeSeriesManager = timeSeriesManager;
