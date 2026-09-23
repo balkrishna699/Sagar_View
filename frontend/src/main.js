@@ -16,6 +16,7 @@ import { DEFAULT_COLORMAP } from './colormaps.js';
 import { ProfileChart } from './profileChart.js';
 import { getAllInstruments } from './instrumentData.js';
 import { VariableSelector } from './variableselector.js';
+import { CrossSectionTool } from './crossSection.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 // ── Performance Metrics ──────────────────────────────────
@@ -95,6 +96,7 @@ renderOceanVolume(oceanScene, currentData, 0, DEFAULT_COLORMAP);
 const colorbar = new Colorbar(container);
 colorbar.update(currentData.minTemp, currentData.maxTemp);
 const variableSelector = new VariableSelector(container);
+const crossSectionTool = new CrossSectionTool(container);
 const markerManager = new MarkerManager(oceanScene, currentData.grid);
 markerManager.setOceanData(currentData);
 

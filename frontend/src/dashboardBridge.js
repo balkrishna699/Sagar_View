@@ -1,6 +1,6 @@
 import { eventBus } from './eventBus.js';
 import { fetchOceanData } from './api.js';
-import { renderOceanVolumeMultiVariable } from './renderer.js';
+import { renderOceanVolumeMultiVariable, updateClippingPlanes } from './renderer.js';
 import { setState, getState } from './sceneState.js';
 
 /**
@@ -72,6 +72,11 @@ export function setupDashboardBridge(oceanScene, initialData, renderFn, colorbar
     console.log(`📊 Bridge: exaggeration=${factor}`);
     const { currentVariable, currentColormap, currentDepthIndex } = getState();
     renderOceanVolumeMultiVariable(oceanScene, currentData, currentDepthIndex, currentVariable, currentColormap);
+  });
+
+  // ── Cross Section changes ──
+  eventBus.on('crossSectionChanged', ({ clipX, clipY, clipZ }) => {
+    updateClippingPlanes(clipX, clipY, clipZ);
   });
 
   // ── Expose current data getter for other modules ──

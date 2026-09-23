@@ -26,6 +26,7 @@ export class OceanScene {
       alpha: false,
       powerPreference: 'high-performance',
     });
+    this.renderer.localClippingEnabled = true;
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;

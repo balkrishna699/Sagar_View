@@ -29,6 +29,9 @@ const state = {
   cameraPosition:    { x: 0, y: 0, z: 0 },
   isLoading:         false,
   dataSource:        'mock',
+  clipX:             100, // 0-100 percentage
+  clipY:             100,
+  clipZ:             100,
 };
 
 /**
@@ -76,6 +79,14 @@ export function setState(patch) {
 
     if (changed.includes('isLoading')) {
       eventBus.emit('loadingChanged', { isLoading: state.isLoading });
+    }
+
+    if (changed.includes('clipX') || changed.includes('clipY') || changed.includes('clipZ')) {
+      eventBus.emit('crossSectionChanged', { 
+        clipX: state.clipX, 
+        clipY: state.clipY, 
+        clipZ: state.clipZ 
+      });
     }
   }
 }

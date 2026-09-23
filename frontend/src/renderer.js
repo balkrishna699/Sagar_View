@@ -1,6 +1,18 @@
 import * as THREE from 'three';
-import { latLonDepthToScene } from './coordinates.js';
+import { latLonDepthToScene, getVerticalExaggeration } from './coordinates.js';
 import { getColor, DEFAULT_COLORMAP } from './colormaps.js';
+
+// Global clipping planes (normals face INWARD towards the visible region)
+export const clipPlaneX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 100);
+export const clipPlaneY = new THREE.Plane(new THREE.Vector3(0, -1, 0), 50);
+export const clipPlaneZ = new THREE.Plane(new THREE.Vector3(0, 0, -1), 100);
+
+export function updateClippingPlanes(pctX, pctY, pctZ) {
+  clipPlaneX.constant = (pctX / 100) * 100;
+  clipPlaneZ.constant = (pctZ / 100) * 100;
+  const yRange = 50 * getVerticalExaggeration();
+  clipPlaneY.constant = (pctY / 100) * yRange;
+}
 
 /* ── helpers ── */
 function clearNamed(scene, name) {
@@ -181,6 +193,8 @@ export function renderOceanVolumeMultiVariable(
     metalness: 0.5,
     side: THREE.FrontSide,
     depthWrite: false, // Prevents self-occlusion artifacts
+    clippingPlanes: [clipPlaneX, clipPlaneY, clipPlaneZ],
+    clipIntersection: false,
   });
 
   const mesh = new THREE.InstancedMesh(boxGeo, boxMat, totalCells);

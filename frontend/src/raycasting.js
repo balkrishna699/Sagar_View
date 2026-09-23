@@ -188,14 +188,30 @@ export class MarkerManager {
     const intersects = this.raycaster.intersectObjects(this.markers.map(m => m.mesh));
 
     if (intersects.length > 0) {
-      const { lat, lon, depth, label } = intersects[0].object.userData;
+      const { lat, lon, depth, label, metadata } = intersects[0].object.userData;
       this.tooltip.style.display = 'block';
       this.tooltip.style.left = `${event.clientX - rect.left + 12}px`;
       this.tooltip.style.top = `${event.clientY - rect.top - 10}px`;
+      
+      let measurementsHtml = '';
+      if (metadata && metadata.measurements) {
+        const m = metadata.measurements;
+        const speed = Math.sqrt((m.u_current || 0) ** 2 + (m.v_current || 0) ** 2);
+        const direction = Math.atan2((m.v_current || 0), (m.u_current || 0)) * (180 / Math.PI);
+        measurementsHtml = `
+          <hr style="border-color: rgba(255,255,255,0.1); margin: 6px 0;" />
+          <span style="color: #ff9b72;">Temp: ${m.temperature?.toFixed(2)} °C</span><br/>
+          <span style="color: #7ccbff;">Salinity: ${m.salinity?.toFixed(3)} PSU</span><br/>
+          <span style="color: #a0c4df;">Speed: ${speed.toFixed(3)} m/s</span><br/>
+          <span style="color: #c4a0df;">Dir: ${direction.toFixed(1)}°</span>
+        `;
+      }
+
       this.tooltip.innerHTML = `
         <b style="color: #4db8ff;">${label}</b><br/>
         ${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E<br/>
         Depth: ${depth}m
+        ${measurementsHtml}
       `;
     } else {
       this.tooltip.style.display = 'none';
