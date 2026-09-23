@@ -114,7 +114,7 @@ export class MarkerManager {
     const data = oceanData || this._currentOceanData;
     if (!data?.grid?.lat?.length) return null;
 
-    const { grid, temperature, salinity } = data;
+    const { grid, temperature, salinity, currentSpeed } = data;
 
     // Find nearest grid indices
     const latIdx = _findNearest(grid.lat, lat);
@@ -126,12 +126,14 @@ export class MarkerManager {
       depths: [],
       temperature: [],
       salinity: [],
+      currentSpeed: [],
     };
 
     for (let d = 0; d < grid.depth.length; d++) {
       profile.depths.push(grid.depth[d]);
       profile.temperature.push(temperature?.[d]?.[latIdx]?.[lonIdx] ?? null);
       profile.salinity.push(salinity?.[d]?.[latIdx]?.[lonIdx] ?? null);
+      profile.currentSpeed.push(currentSpeed?.[d]?.[latIdx]?.[lonIdx] ?? null);
     }
 
     return profile;

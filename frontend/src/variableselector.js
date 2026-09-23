@@ -7,7 +7,11 @@ import { getColormapNames } from './colormaps.js';
  */
 export class VariableSelector {
   constructor(container) {
-    const variables = ['temperature', 'salinity'];
+    const variables = [
+      { id: 'temperature', name: 'Temperature' },
+      { id: 'salinity', name: 'Salinity' },
+      { id: 'currentSpeed', name: 'Current Speed' }
+    ];
     const colormaps = getColormapNames();
     const { currentVariable, currentColormap } = getState();
 
@@ -20,8 +24,8 @@ export class VariableSelector {
         <label style="display:block; margin-bottom: 4px;">VARIABLE</label>
         <select id="variableSelect" class="dash-select">
           ${variables.map(v => `
-            <option value="${v}" ${v === currentVariable ? 'selected' : ''}>
-              ${v.charAt(0).toUpperCase() + v.slice(1)}
+            <option value="${v.id}" ${v.id === currentVariable ? 'selected' : ''}>
+              ${v.name}
             </option>`).join('')}
         </select>
       </div>

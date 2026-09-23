@@ -94,6 +94,7 @@ export class ProfileChart {
     // Build chart data — Person 2's scatter format: x = variable, y = depth
     const temperatureData = [];
     const salinityData = [];
+    const speedData = [];
 
     profile.depths.forEach((depth, i) => {
       if (profile.temperature[i] !== null) {
@@ -101,6 +102,9 @@ export class ProfileChart {
       }
       if (profile.salinity[i] !== null) {
         salinityData.push({ x: profile.salinity[i], y: depth });
+      }
+      if (profile.currentSpeed && profile.currentSpeed[i] !== null) {
+        speedData.push({ x: profile.currentSpeed[i], y: depth });
       }
     });
 
@@ -141,6 +145,18 @@ export class ProfileChart {
             pointBackgroundColor: 'rgba(77, 184, 255, 0.8)',
             tension: 0.25,
             xAxisID: 'xSalinity',
+          },
+          {
+            label: 'Current Speed (m/s)',
+            data: speedData,
+            showLine: true,
+            borderWidth: 2,
+            borderColor: 'rgba(160, 196, 223, 0.9)',
+            backgroundColor: 'rgba(160, 196, 223, 0.15)',
+            pointRadius: 3,
+            pointBackgroundColor: 'rgba(160, 196, 223, 0.8)',
+            tension: 0.25,
+            xAxisID: 'xSpeed',
           },
         ],
       },
@@ -185,6 +201,21 @@ export class ProfileChart {
               font: { size: 11, family: 'Inter, sans-serif' },
             },
             ticks: { color: '#7ccbff' },
+            grid: {
+              drawOnChartArea: false,
+            },
+          },
+
+          xSpeed: {
+            type: 'linear',
+            position: 'bottom',
+            title: {
+              display: true,
+              text: 'Current Speed (m/s)',
+              color: '#a0c4df',
+              font: { size: 11, family: 'Inter, sans-serif' },
+            },
+            ticks: { color: '#a0c4df' },
             grid: {
               drawOnChartArea: false,
             },
@@ -268,6 +299,7 @@ export class ProfileChart {
       depths: [...grid.depth],
       temperature: grid.depth.map((_, d) => temperature?.[d]?.[latIdx]?.[lonIdx] ?? null),
       salinity: grid.depth.map((_, d) => salinity?.[d]?.[latIdx]?.[lonIdx] ?? null),
+      currentSpeed: grid.depth.map((_, d) => oceanData.currentSpeed?.[d]?.[latIdx]?.[lonIdx] ?? null),
     };
 
     this.renderProfile(profile, 'manual', 'manual');

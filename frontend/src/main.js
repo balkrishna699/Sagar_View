@@ -122,9 +122,9 @@ new DepthSlider(container, currentData.grid, (depthIndex) => {
 
 // Link State Changes to Colorbar and Render updates
 eventBus.on('colorbarChanged', ({ variable, colormap }) => {
-  const minVal = variable === 'temperature' ? currentData.minTemp : currentData.minSal;
-  const maxVal = variable === 'temperature' ? currentData.maxTemp : currentData.maxSal;
-  const unit = variable === 'temperature' ? 'Temperature (°C)' : 'Salinity (PSU)';
+  const minVal = variable === 'temperature' ? currentData.minTemp : variable === 'salinity' ? currentData.minSal : currentData.minSpeed;
+  const maxVal = variable === 'temperature' ? currentData.maxTemp : variable === 'salinity' ? currentData.maxSal : currentData.maxSpeed;
+  const unit = variable === 'temperature' ? 'Temperature (°C)' : variable === 'salinity' ? 'Salinity (PSU)' : 'Current Speed (m/s)';
   
   colorbar.setColormap(colormap);
   colorbar.update(minVal, maxVal, unit);
@@ -149,9 +149,9 @@ window.addEventListener('timeIndexChanged', (e) => {
   const { currentVariable, currentColormap, currentDepthIndex } = getState();
   renderOceanVolumeMultiVariable(oceanScene, currentData, currentDepthIndex, currentVariable, currentColormap);
 
-  const minVal = currentVariable === 'temperature' ? currentData.minTemp : currentData.minSal;
-  const maxVal = currentVariable === 'temperature' ? currentData.maxTemp : currentData.maxSal;
-  const unit = currentVariable === 'temperature' ? '°C' : 'PSU';
+  const minVal = currentVariable === 'temperature' ? currentData.minTemp : currentVariable === 'salinity' ? currentData.minSal : currentData.minSpeed;
+  const maxVal = currentVariable === 'temperature' ? currentData.maxTemp : currentVariable === 'salinity' ? currentData.maxSal : currentData.maxSpeed;
+  const unit = currentVariable === 'temperature' ? '°C' : currentVariable === 'salinity' ? 'PSU' : 'm/s';
   colorbar.update(minVal, maxVal, unit);
 
   eventBus.emit('timeChanged', { timeIndex, timestamp });

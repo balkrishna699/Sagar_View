@@ -157,8 +157,8 @@ export function renderOceanVolumeMultiVariable(
 
   const { grid } = oceanData;
   const data   = oceanData[variable];
-  const minVal = variable === 'temperature' ? oceanData.minTemp : oceanData.minSal;
-  const maxVal = variable === 'temperature' ? oceanData.maxTemp : oceanData.maxSal;
+  const minVal = variable === 'temperature' ? oceanData.minTemp : variable === 'salinity' ? oceanData.minSal : oceanData.minSpeed;
+  const maxVal = variable === 'temperature' ? oceanData.maxTemp : variable === 'salinity' ? oceanData.maxSal : oceanData.maxSpeed;
 
   if (!data) {
     console.warn(`⚠️ Variable "${variable}" not found in ocean data`);
