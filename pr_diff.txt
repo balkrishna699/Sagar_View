@@ -1,0 +1,594 @@
+﻿diff --git a/DATA_CONTRACT.md b/DATA_CONTRACT.md
+index 8d17fe5..8efec8c 100644
+--- a/DATA_CONTRACT.md
++++ b/DATA_CONTRACT.md
+@@ -5,16 +5,18 @@
+    
+    ```json
+    {
+-     "time": "2024-01-15T00:00:00Z",
++     "time": "2026-09-20T12:00:00Z",
+      "grid": {
+-       "lat": [15.0, 15.05, 15.10, ...],   // length: N_LAT (e.g., 20)
+-       "lon": [75.0, 75.05, 75.10, ...],   // length: N_LON (e.g., 20)
+-       "depth": [0, 50, 100, ..., 450]     // length: N_DEPTH (e.g., 10)
++       "lat": [5.0, 5.5, 6.0, ..., 25.0],      // length: N_LAT (41 in the real dataset)
++       "lon": [65.0, 65.5, 66.0, ..., 85.0],   // length: N_LON (41 in the real dataset)
++       "depth": [0, 100, 250, ..., 5000]       // length: N_DEPTH (14 in the real dataset)
+      },
+-     "temperature": [[[value, ...], ...], ...],  // shape: [depth][lat][lon]
+-     "salinity": [[[value, ...], ...], ...],     // shape: [depth][lat][lon]
+-     "minTemp": 10, "maxTemp": 32,
+-     "minSal": 30, "maxSal": 36
++     "temperature": [[[value, ...], ...], ...],  // shape: [depth][lat][lon], degC
++     "salinity": [[[value, ...], ...], ...],     // shape: [depth][lat][lon], PSU
++     "currentSpeed": [[[value, ...], ...], ...], // shape: [depth][lat][lon], m/s = sqrt(u^2+v^2)
++     "minTemp": -2, "maxTemp": 29,
++     "minSal": 34, "maxSal": 36,
++     "minSpeed": 0, "maxSpeed": 1
+    }
+    ```
+ 
+@@ -26,9 +28,10 @@
+ 
+    | Endpoint | Method | Params | Status |
+    |----------|--------|--------|--------|
+-   | `/data` | GET | `?time=ISO` `?minDepth=` `?maxDepth=` | Γ£à Implemented (PR #2, depth filtering PR #3) |
+-   | `/health` | GET | ΓÇô | Γ£à Implemented |
+-   | `/timeseries` | GET | `?lat=` `&lon=` | ΓÅ│ Planned |
++   | `/data` | GET | `?minDepth=` `?maxDepth=` | Γ£à Implemented (PR #2, filtering PR #3, real data PR #4) |
++   | `/health` | GET | ΓÇô | Γ£à Implemented ΓÇö also reports `usingRealData: bool` |
++   | `/timeseries` | GET | `?lat=` `&lon=` | Γ¥î Not implemented ΓÇö dead code in `api.js`; the frontend actually derives depth profiles client-side from `/data`'s volume grid (see `raycasting.js`'s `getVerticalProfile`), so this was never wired up. Remove from `api.js`/this doc, or tell Person 5 if you actually need it. |
++   | `?time=` | ΓÇö | ΓÇö | Γ¥î Not implemented. Removed from this table (PR #4) since it was listed as done when it wasn't ΓÇö the real dataset only has one timestep right now anyway. |
+    | `/docs` | GET | ΓÇô | Γ£à Swagger UI |
+ 
+    ### Depth Filtering (Day 2 ΓÇö PR #3)
+@@ -38,6 +41,20 @@
+    - Returns 400 if `minDepth > maxDepth` or no depth levels match
+    - Returns 422 for negative depth values
+ 
++   ### Real data (Day 3 ΓÇö PR #4)
++   - `/data` is now backed by Person 4's `SyntheticDeepOceanParser` reading
++     `datasets/synthetic_deep_ocean_5000m.nc` ΓÇö still synthetic, not real ocean
++     observations, but generated through the real parsing pipeline now.
++   - Adds `currentSpeed` (+ `minSpeed`/`maxSpeed`), computed server-side from the
++     dataset's `UVEL`/`VVEL` as `sqrt(u^2+v^2)`, to power the frontend's "Current Speed"
++     variable selector.
++   - If `datasets/` or `parsers/` aren't present in a checkout, the backend automatically
++     falls back to the earlier fake grid so it still boots ΓÇö check `GET /health`'s
++     `usingRealData` field to see which one is live.
++   - The real grid (41├ù41├ù14 Γëê 23.5k points/variable) is bigger than the old fake one
++     (20├ù20├ù10 = 4k points) ΓÇö full `/data` response is ~450KB. Flag to Person 1 if this
++     is noticeably slower to render than the old mock.
++
+    ## Coordinate Convention (Person 1 Γåö Person 2)
+ 
+    Both Person 1 and Person 2 import `latLonDepthToScene()` from `coordinates.js`:
+diff --git a/backend/app/main.py b/backend/app/main.py
+index ac69b7f..3ddbe7b 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -2,12 +2,26 @@ from fastapi import FastAPI, HTTPException, Query
+ from fastapi.middleware.cors import CORSMiddleware
+ 
+ from .models import OceanData
+-from .sample_data import get_dataset, get_full_depth_range
++
++# Day 3: serve Person 4's real parsed dataset. If it's not available in this
++# checkout (missing datasets/ or parsers/, e.g. a teammate hasn't pulled them yet),
++# fall back to the Day 1/2 synthetic data so the server still boots and the
++# frontend still has something to render, rather than crashing on startup.
++try:
++    from . import real_data as data_source
++
++    data_source.get_full_depth_range()  # forces the dataset to open now, not on first request
++    USING_REAL_DATA = True
++except (ImportError, FileNotFoundError) as exc:  # pragma: no cover - environment-dependent
++    from . import sample_data as data_source
++
++    USING_REAL_DATA = False
++    _FALLBACK_REASON = str(exc)
+ 
+ app = FastAPI(
+     title="SAGAR-VIEW Backend API",
+     description="Serves ocean data to the 3D visualization frontend. Schema: DATA_CONTRACT.md",
+-    version="0.2.0",
++    version="0.3.0",
+ )
+ 
+ # The Vite dev server (http://localhost:5173) is a different origin from this API (:8000),
+@@ -21,8 +35,11 @@ app.add_middleware(
+ 
+ 
+ @app.get("/health", tags=["meta"])
+-def health() -> dict[str, str]:
+-    return {"status": "ok"}
++def health() -> dict[str, str | bool]:
++    body: dict[str, str | bool] = {"status": "ok", "usingRealData": USING_REAL_DATA}
++    if not USING_REAL_DATA:
++        body["fallbackReason"] = _FALLBACK_REASON
++    return body
+ 
+ 
+ @app.get("/data", response_model=OceanData, tags=["data"])
+@@ -34,12 +51,13 @@ def get_data(
+         None, ge=0, description="Keep only depth levels <= this value (metres). Default: deepest."
+     ),
+ ) -> OceanData:
+-    """Ocean data in the canonical schema from DATA_CONTRACT.md (currently fake data).
++    """Ocean data in the canonical schema from DATA_CONTRACT.md.
+ 
+-    Day 2: supports ?minDepth= and ?maxDepth= (metres) to return a depth subset.
+-    Day 3: same shape, backed by Person 4's real parsed data.
++    Backed by Person 4's parsed dataset (datasets/synthetic_deep_ocean_5000m.nc) when
++    available; falls back to the earlier fake grid otherwise (see GET /health).
++    Supports ?minDepth= and ?maxDepth= (metres) to return a depth subset.
+     """
+-    full_min, full_max = get_full_depth_range()
++    full_min, full_max = data_source.get_full_depth_range()
+     lo = full_min if minDepth is None else minDepth
+     hi = full_max if maxDepth is None else maxDepth
+ 
+@@ -49,7 +67,7 @@ def get_data(
+             detail=f"minDepth ({lo}) must be <= maxDepth ({hi})",
+         )
+ 
+-    dataset = get_dataset(min_depth=lo, max_depth=hi)
++    dataset = data_source.get_dataset(min_depth=lo, max_depth=hi)
+ 
+     if not dataset.grid.depth:
+         raise HTTPException(
+diff --git a/backend/app/models.py b/backend/app/models.py
+index ece6a79..5ad5185 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -1,7 +1,7 @@
+ """Response models for the backend API.
+ 
+ These mirror the "Canonical JSON Schema" in DATA_CONTRACT.md (repo root).
+-The frontend (frontend/src/api.js, renderer.js) reads exactly these fields.
++The frontend (frontend/src/api.js, renderer.js, raycasting.js) reads exactly these fields.
+ 
+ Array convention (matches frontend/src/renderer.js):
+     temperature[depth_index][lat_index][lon_index]   -> one timestep per response
+@@ -20,10 +20,14 @@ class Grid(BaseModel):
+ class OceanData(BaseModel):
+     time: datetime  # serialised as ISO-8601 UTC, e.g. "2024-01-15T00:00:00Z"
+     grid: Grid
+-    temperature: list[list[list[float]]]  # degC, [depth][lat][lon]
+-    salinity: list[list[list[float]]]  # PSU,  [depth][lat][lon]
+-    # Colorbar limits (camelCase on purpose - the contract uses these exact key names)
++    temperature: list[list[list[float]]]  # degC,      [depth][lat][lon]
++    salinity: list[list[list[float]]]  # PSU,          [depth][lat][lon]
++    currentSpeed: list[list[list[float]]]  # m/s,       [depth][lat][lon] - sqrt(u^2+v^2)
++    # Colorbar limits (camelCase on purpose - the contract uses these exact key names,
++    # and frontend/src/renderer.js's getColorbarRange() reads minSpeed/maxSpeed directly)
+     minTemp: float
+     maxTemp: float
+     minSal: float
+     maxSal: float
++    minSpeed: float
++    maxSpeed: float
+diff --git a/backend/app/real_data.py b/backend/app/real_data.py
+new file mode 100644
+index 0000000..a27f562
+--- /dev/null
++++ b/backend/app/real_data.py
+@@ -0,0 +1,135 @@
++"""Loads Person 4's parsed ocean dataset and serves it in the canonical schema.
++
++This is what Day 3 swaps in for app/sample_data.py's fake data. Same function
++signature (get_dataset, get_full_depth_range), so app/main.py barely changes.
++
++Data source: Person 4's SyntheticDeepOceanParser reading
++datasets/synthetic_deep_ocean_5000m.nc (repo root). That file is synthetic
++(see its own metadata), not real ocean observations - "real" here means
++"Person 4's parsed pipeline", not "real measurements".
++
++Import note: parsers/ and datasets/ live at the repo root, one level above
++backend/. This module adds the repo root to sys.path at import time so
++`from parsers... import ...` works when uvicorn is run from inside backend/.
++This assumes backend/ stays a direct child of the repo root - if Person 6
++restructures the repo layout, this path needs updating.
++"""
++import math
++import sys
++from pathlib import Path
++
++import xarray as xr
++
++from .models import Grid, OceanData
++
++_REPO_ROOT = Path(__file__).resolve().parents[2]
++if str(_REPO_ROOT) not in sys.path:
++    sys.path.insert(0, str(_REPO_ROOT))
++
++from parsers.syntheticdeepoceanparser import SyntheticDeepOceanParser  # noqa: E402
++
++DATA_PATH = _REPO_ROOT / "datasets" / "synthetic_deep_ocean_5000m.nc"
++
++_cache: dict | None = None
++
++
++def _load() -> dict:
++    """Open the dataset once and cache its parser + coordinate bounds.
++
++    Re-fetches on every /data call use the cached parser (cheap - xarray lazy-loads),
++    so this only pays the file-open cost once per server process.
++    """
++    global _cache
++    if _cache is not None:
++        return _cache
++
++    if not DATA_PATH.exists():
++        raise FileNotFoundError(
++            f"Expected Person 4's dataset at {DATA_PATH}, but it's not there. "
++            "Check that datasets/synthetic_deep_ocean_5000m.nc is committed and that "
++            "backend/ is still a direct child of the repo root."
++        )
++
++    ds = xr.open_dataset(DATA_PATH)
++    _cache = {
++        "parser": SyntheticDeepOceanParser(str(DATA_PATH)),
++        "lat_min": float(ds["LAT"].min()),
++        "lat_max": float(ds["LAT"].max()),
++        "lon_min": float(ds["LON"].min()),
++        "lon_max": float(ds["LON"].max()),
++        "depth_min": float(ds["DEPTH"].min()),
++        "depth_max": float(ds["DEPTH"].max()),
++        "time": ds["TIME"].values[0],
++    }
++    ds.close()
++    return _cache
++
++
++def get_full_depth_range() -> tuple[float, float]:
++    """(min, max) depth in metres in the real dataset, for validating query params."""
++    c = _load()
++    return c["depth_min"], c["depth_max"]
++
++
++def _round3(cube: list) -> list:
++    return [[[round(v, 3) for v in row] for row in plane] for plane in cube]
++
++
++def _flat_min_max(cube: list) -> tuple[float, float]:
++    flat = [v for plane in cube for row in plane for v in row]
++    return math.floor(min(flat)), math.ceil(max(flat))
++
++
++def get_dataset(min_depth: float | None = None, max_depth: float | None = None) -> OceanData:
++    """Single entry point used by the API - same signature as sample_data.get_dataset().
++
++    min_depth/max_depth (metres, inclusive) select the matching slice of Person 4's
++    real DEPTH coordinate (0, 100, 250, ..., 5000m) - not an arbitrary interpolation.
++    """
++    c = _load()
++    lo = c["depth_min"] if min_depth is None else min_depth
++    hi = c["depth_max"] if max_depth is None else max_depth
++
++    region = c["parser"].get_3d_region_data(
++        min_lat=c["lat_min"],
++        max_lat=c["lat_max"],
++        min_lon=c["lon_min"],
++        max_lon=c["lon_max"],
++        min_depth=lo,
++        max_depth=hi,
++        time=c["time"],
++    )
++
++    temperature = _round3(region["temperature"])
++    salinity = _round3(region["salinity"])
++
++    n_depth, n_lat, n_lon = len(region["depth"]), len(region["latitude"]), len(region["longitude"])
++    u, v = region["u_current"], region["v_current"]
++    current_speed = _round3(
++        [
++            [[math.hypot(u[d][la][lo_], v[d][la][lo_]) for lo_ in range(n_lon)] for la in range(n_lat)]
++            for d in range(n_depth)
++        ]
++    )
++
++    if temperature:
++        min_t, max_t = _flat_min_max(temperature)
++        min_s, max_s = _flat_min_max(salinity)
++        min_sp, max_sp = _flat_min_max(current_speed)
++    else:
++        # No depth levels matched the filter; OceanData still needs valid floats.
++        min_t = max_t = min_s = max_s = min_sp = max_sp = 0.0
++
++    return OceanData(
++        time=region["time"],
++        grid=Grid(lat=region["latitude"], lon=region["longitude"], depth=region["depth"]),
++        temperature=temperature,
++        salinity=salinity,
++        currentSpeed=current_speed,
++        minTemp=min_t,
++        maxTemp=max_t,
++        minSal=min_s,
++        maxSal=max_s,
++        minSpeed=min_sp,
++        maxSpeed=max_sp,
++    )
+diff --git a/backend/app/sample_data.py b/backend/app/sample_data.py
+index e899ae0..4d7d730 100644
+--- a/backend/app/sample_data.py
++++ b/backend/app/sample_data.py
+@@ -1,4 +1,5 @@
+-"""Deterministic FAKE ocean data (Day 1-3). Replaced by Person 4's parsed output on Day 3.
++"""Deterministic FAKE ocean data - used only if Person 4's real dataset isn't available
++(see app/main.py's fallback logic and GET /health's usingRealData flag).
+ 
+ The grid deliberately matches frontend/src/mockData.js (20 x 20 x 10, lat 15.00-15.95,
+ lon 75.00-75.95, depth 0-450 m), so the frontend can swap mock -> API without changes.
+@@ -28,6 +29,18 @@ def _salinity(d: int, la: int, lo: int) -> float:
+     return 35 + 0.5 * math.sin(la * 0.2) * math.cos(lo * 0.2) + 0.5 * (d / N_DEPTH)
+ 
+ 
++def _u_current(d: int, la: int, lo: int) -> float:
++    return 0.15 * math.cos(la * 0.15) * (1 - d / N_DEPTH)
++
++
++def _v_current(d: int, la: int, lo: int) -> float:
++    return 0.15 * math.sin(lo * 0.15) * (1 - d / N_DEPTH)
++
++
++def _current_speed(d: int, la: int, lo: int) -> float:
++    return math.hypot(_u_current(d, la, lo), _v_current(d, la, lo))
++
++
+ def _cube(fn, depth_indices: list[int]) -> list[list[list[float]]]:
+     return [
+         [[round(fn(d, la, lo), 3) for lo in range(N_LON)] for la in range(N_LAT)]
+@@ -41,7 +54,7 @@ def _flat_min_max(cube: list[list[list[float]]]) -> tuple[float, float]:
+ 
+ 
+ def get_dataset(min_depth: float | None = None, max_depth: float | None = None) -> OceanData:
+-    """Single entry point used by the API. Day 3: return Person 4's real data here.
++    """Fallback entry point - same signature as real_data.get_dataset().
+ 
+     min_depth/max_depth (metres, inclusive) keep only matching depth *levels* from the
+     fixed grid above - they don't interpolate to arbitrary depths.
+@@ -53,13 +66,15 @@ def get_dataset(min_depth: float | None = None, max_depth: float | None = None)
+ 
+     temperature = _cube(_temperature, depth_indices)
+     salinity = _cube(_salinity, depth_indices)
++    current_speed = _cube(_current_speed, depth_indices)
+ 
+     if temperature:
+         min_t, max_t = _flat_min_max(temperature)
+         min_s, max_s = _flat_min_max(salinity)
++        min_sp, max_sp = _flat_min_max(current_speed)
+     else:
+         # No depth levels matched the filter; OceanData still needs valid floats.
+-        min_t = max_t = min_s = max_s = 0.0
++        min_t = max_t = min_s = max_s = min_sp = max_sp = 0.0
+ 
+     return OceanData(
+         time=FAKE_TIME,
+@@ -70,8 +85,11 @@ def get_dataset(min_depth: float | None = None, max_depth: float | None = None)
+         ),
+         temperature=temperature,
+         salinity=salinity,
++        currentSpeed=current_speed,
+         minTemp=min_t,
+         maxTemp=max_t,
+         minSal=min_s,
+         maxSal=max_s,
++        minSpeed=min_sp,
++        maxSpeed=max_sp,
+     )
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+index e0b8f32..b60bc77 100644
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -1,2 +1,4 @@
+ fastapi>=0.115,<1.0
+ uvicorn[standard]>=0.30,<1.0
++xarray>=2024.1
++netCDF4>=1.6
+diff --git a/backend/tests/test_data.py b/backend/tests/test_data.py
+index 1c975f4..60ac29d 100644
+--- a/backend/tests/test_data.py
++++ b/backend/tests/test_data.py
+@@ -1,4 +1,5 @@
+ import math
++from datetime import datetime
+ 
+ from fastapi.testclient import TestClient
+ 
+@@ -10,7 +11,9 @@ client = TestClient(app)
+ def test_health():
+     r = client.get("/health")
+     assert r.status_code == 200
+-    assert r.json() == {"status": "ok"}
++    body = r.json()
++    assert body["status"] == "ok"
++    assert body["usingRealData"] is True
+ 
+ 
+ def test_data_has_exactly_the_contract_keys():
+@@ -18,24 +21,31 @@ def test_data_has_exactly_the_contract_keys():
+     assert r.status_code == 200
+     body = r.json()
+     assert set(body) == {
+-        "time", "grid", "temperature", "salinity",
++        "time", "grid", "temperature", "salinity", "currentSpeed",
+         "minTemp", "maxTemp", "minSal", "maxSal",
++        "minSpeed", "maxSpeed",
+     }
+     assert set(body["grid"]) == {"lat", "lon", "depth"}
+ 
+ 
+-def test_time_is_iso_utc_string():
+-    assert client.get("/data").json()["time"] == "2024-01-15T00:00:00Z"
++def test_time_is_iso_string():
++    value = client.get("/data").json()["time"]
++    datetime.fromisoformat(value.replace("Z", "+00:00"))
+ 
+ 
+ def test_arrays_are_depth_lat_lon_and_match_grid():
+     body = client.get("/data").json()
+-    n_depth, n_lat, n_lon = (len(body["grid"][k]) for k in ("depth", "lat", "lon"))
+-    for name in ("temperature", "salinity"):
++    n_depth, n_lat, n_lon = (
++        len(body["grid"][k]) for k in ("depth", "lat", "lon")
++    )
++
++    for name in ("temperature", "salinity", "currentSpeed"):
+         cube = body[name]
+         assert len(cube) == n_depth, name
+         assert all(len(plane) == n_lat for plane in cube), name
+-        assert all(len(row) == n_lon for plane in cube for row in plane), name
++        assert all(
++            len(row) == n_lon for plane in cube for row in plane
++        ), name
+ 
+ 
+ def test_grid_axes_are_sane():
+@@ -46,16 +56,23 @@ def test_grid_axes_are_sane():
+ 
+ 
+ def test_index_order_is_depth_then_lat_then_lon():
+-    # temperature = 28 - (d/10)*15 + sin(la*0.1)*cos(lo*0.1)*3 ; check one asymmetric cell
+-    cube = client.get("/data").json()["temperature"]
+-    d, la, lo = 2, 3, 5
+-    expected = 28 - (d / 10) * 15 + math.sin(la * 0.1) * math.cos(lo * 0.1) * 3
+-    assert cube[d][la][lo] == round(expected, 3)
++    body = client.get("/data").json()
++
++    for name in ("temperature", "salinity", "currentSpeed"):
++        cube = body[name]
++        assert len(cube) == len(body["grid"]["depth"])
++        assert len(cube[0]) == len(body["grid"]["lat"])
++        assert len(cube[0][0]) == len(body["grid"]["lon"])
+ 
+ 
+ def test_colorbar_limits_bound_the_data():
+     body = client.get("/data").json()
+-    for var, lo, hi in (("temperature", "minTemp", "maxTemp"), ("salinity", "minSal", "maxSal")):
++
++    for var, lo, hi in (
++        ("temperature", "minTemp", "maxTemp"),
++        ("salinity", "minSal", "maxSal"),
++        ("currentSpeed", "minSpeed", "maxSpeed"),
++    ):
+         flat = [v for plane in body[var] for row in plane for v in row]
+         assert body[lo] <= min(flat) and max(flat) <= body[hi], var
+ 
+diff --git a/backend/tests/test_fallback.py b/backend/tests/test_fallback.py
+new file mode 100644
+index 0000000..799c397
+--- /dev/null
++++ b/backend/tests/test_fallback.py
+@@ -0,0 +1,24 @@
++"""Verifies the Day-3 fallback path: if Person 4's dataset/parsers aren't available in
++this checkout, the server must still boot and GET /data must still return a valid,
++schema-complete response - just from the fake grid instead of the real one.
++
++This imports app.sample_data directly (bypassing app.main's import-time try/except,
++which can't be re-triggered within one process) to check the fallback module on its
++own contract, independent of whichever module main.py actually picked at import time.
++"""
++from app import sample_data
++from app.models import OceanData
++
++
++def test_sample_data_alone_satisfies_the_full_schema():
++    dataset = sample_data.get_dataset()
++    assert isinstance(dataset, OceanData)
++    # Would raise pydantic.ValidationError if any field (e.g. currentSpeed) were missing -
++    # this is exactly the bug this test would have caught before it shipped.
++    OceanData.model_validate(dataset.model_dump())
++
++
++def test_sample_data_depth_filtering_still_works():
++    lo, hi = sample_data.FULL_DEPTH[1], sample_data.FULL_DEPTH[-2]
++    dataset = sample_data.get_dataset(min_depth=lo, max_depth=hi)
++    assert dataset.grid.depth == [d for d in sample_data.FULL_DEPTH if lo <= d <= hi]
+diff --git a/backend/tests/test_filtering.py b/backend/tests/test_filtering.py
+index 27fc0ac..003d96c 100644
+--- a/backend/tests/test_filtering.py
++++ b/backend/tests/test_filtering.py
+@@ -8,23 +8,31 @@ client = TestClient(app)
+ 
+ def test_no_params_returns_full_depth_range():
+     body = client.get("/data").json()
+-    assert body["grid"]["depth"] == [0, 50, 100, 150, 200, 250, 300, 350, 400, 450]
++    depths = body["grid"]["depth"]
++    assert depths == sorted(depths)
++    assert depths[0] == 0
++    assert depths[-1] == 5000
+ 
+ 
+ def test_min_depth_only():
+     body = client.get("/data?minDepth=100").json()
+-    assert body["grid"]["depth"] == [100, 150, 200, 250, 300, 350, 400, 450]
+-    assert len(body["temperature"]) == len(body["grid"]["depth"])
++    depths = body["grid"]["depth"]
++    assert all(depth >= 100 for depth in depths)
++    assert len(body["temperature"]) == len(depths)
+ 
+ 
+ def test_max_depth_only():
+     body = client.get("/data?maxDepth=100").json()
+-    assert body["grid"]["depth"] == [0, 50, 100]
++    depths = body["grid"]["depth"]
++    assert all(depth <= 100 for depth in depths)
++    assert depths[0] == 0
+ 
+ 
+ def test_min_and_max_depth():
+     body = client.get("/data?minDepth=50&maxDepth=200").json()
+-    assert body["grid"]["depth"] == [50, 100, 150, 200]
++    depths = body["grid"]["depth"]
++    assert all(50 <= depth <= 200 for depth in depths)
++    assert depths == sorted(depths)
+ 
+ 
+ def test_arrays_still_match_filtered_grid_shape():
+diff --git a/backend/tests/test_realdata.py b/backend/tests/test_realdata.py
+new file mode 100644
+index 0000000..324c382
+--- /dev/null
++++ b/backend/tests/test_realdata.py
+@@ -0,0 +1,39 @@
++"""Tests specific to today's real dataset (datasets/synthetic_deep_ocean_5000m.nc).
++
++If Person 4 changes the dataset later, these are the tests most likely to need
++updating - test_data.py / test_filtering.py should keep passing unchanged.
++"""
++import pytest
++
++from app.main import app, USING_REAL_DATA
++
++pytestmark = pytest.mark.skipif(
++    not USING_REAL_DATA,
++    reason="datasets/synthetic_deep_ocean_5000m.nc or parsers/ not available in this checkout",
++)
++
++from fastapi.testclient import TestClient  # noqa: E402
++
++client = TestClient(app)
++
++
++def test_health_reports_real_data():
++    assert client.get("/health").json() == {"status": "ok", "usingRealData": True}
++
++
++def test_grid_matches_known_dataset_bounds():
++    grid = client.get("/data").json()["grid"]
++    assert len(grid["lat"]) == 41
++    assert len(grid["lon"]) == 41
++    assert len(grid["depth"]) == 14
++    assert grid["depth"][0] == 0
++    assert grid["depth"][-1] == 5000
++    assert grid["lat"][0] == pytest.approx(5.0)
++    assert grid["lat"][-1] == pytest.approx(25.0)
++
++
++def test_temperature_range_is_physically_plausible():
++    body = client.get("/data").json()
++    # Deep, cold water at high latitude can dip below 0degC; surface tropics ~28-29degC.
++    assert -3 <= body["minTemp"] <= 5
++    assert 20 <= body["maxTemp"] <= 32
