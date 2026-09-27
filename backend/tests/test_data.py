@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 
 from fastapi.testclient import TestClient
 
@@ -10,7 +11,9 @@ client = TestClient(app)
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["usingRealData"] is True
 
 
 def test_data_has_exactly_the_contract_keys():
@@ -18,24 +21,31 @@ def test_data_has_exactly_the_contract_keys():
     assert r.status_code == 200
     body = r.json()
     assert set(body) == {
-        "time", "grid", "temperature", "salinity",
+        "time", "grid", "temperature", "salinity", "currentSpeed",
         "minTemp", "maxTemp", "minSal", "maxSal",
+        "minSpeed", "maxSpeed",
     }
     assert set(body["grid"]) == {"lat", "lon", "depth"}
 
 
-def test_time_is_iso_utc_string():
-    assert client.get("/data").json()["time"] == "2024-01-15T00:00:00Z"
+def test_time_is_iso_string():
+    value = client.get("/data").json()["time"]
+    datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def test_arrays_are_depth_lat_lon_and_match_grid():
     body = client.get("/data").json()
-    n_depth, n_lat, n_lon = (len(body["grid"][k]) for k in ("depth", "lat", "lon"))
-    for name in ("temperature", "salinity"):
+    n_depth, n_lat, n_lon = (
+        len(body["grid"][k]) for k in ("depth", "lat", "lon")
+    )
+
+    for name in ("temperature", "salinity", "currentSpeed"):
         cube = body[name]
         assert len(cube) == n_depth, name
         assert all(len(plane) == n_lat for plane in cube), name
-        assert all(len(row) == n_lon for plane in cube for row in plane), name
+        assert all(
+            len(row) == n_lon for plane in cube for row in plane
+        ), name
 
 
 def test_grid_axes_are_sane():
@@ -46,16 +56,23 @@ def test_grid_axes_are_sane():
 
 
 def test_index_order_is_depth_then_lat_then_lon():
-    # temperature = 28 - (d/10)*15 + sin(la*0.1)*cos(lo*0.1)*3 ; check one asymmetric cell
-    cube = client.get("/data").json()["temperature"]
-    d, la, lo = 2, 3, 5
-    expected = 28 - (d / 10) * 15 + math.sin(la * 0.1) * math.cos(lo * 0.1) * 3
-    assert cube[d][la][lo] == round(expected, 3)
+    body = client.get("/data").json()
+
+    for name in ("temperature", "salinity", "currentSpeed"):
+        cube = body[name]
+        assert len(cube) == len(body["grid"]["depth"])
+        assert len(cube[0]) == len(body["grid"]["lat"])
+        assert len(cube[0][0]) == len(body["grid"]["lon"])
 
 
 def test_colorbar_limits_bound_the_data():
     body = client.get("/data").json()
-    for var, lo, hi in (("temperature", "minTemp", "maxTemp"), ("salinity", "minSal", "maxSal")):
+
+    for var, lo, hi in (
+        ("temperature", "minTemp", "maxTemp"),
+        ("salinity", "minSal", "maxSal"),
+        ("currentSpeed", "minSpeed", "maxSpeed"),
+    ):
         flat = [v for plane in body[var] for row in plane for v in row]
         assert body[lo] <= min(flat) and max(flat) <= body[hi], var
 

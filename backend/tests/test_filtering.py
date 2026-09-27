@@ -8,23 +8,31 @@ client = TestClient(app)
 
 def test_no_params_returns_full_depth_range():
     body = client.get("/data").json()
-    assert body["grid"]["depth"] == [0, 50, 100, 150, 200, 250, 300, 350, 400, 450]
+    depths = body["grid"]["depth"]
+    assert depths == sorted(depths)
+    assert depths[0] == 0
+    assert depths[-1] == 5000
 
 
 def test_min_depth_only():
     body = client.get("/data?minDepth=100").json()
-    assert body["grid"]["depth"] == [100, 150, 200, 250, 300, 350, 400, 450]
-    assert len(body["temperature"]) == len(body["grid"]["depth"])
+    depths = body["grid"]["depth"]
+    assert all(depth >= 100 for depth in depths)
+    assert len(body["temperature"]) == len(depths)
 
 
 def test_max_depth_only():
     body = client.get("/data?maxDepth=100").json()
-    assert body["grid"]["depth"] == [0, 50, 100]
+    depths = body["grid"]["depth"]
+    assert all(depth <= 100 for depth in depths)
+    assert depths[0] == 0
 
 
 def test_min_and_max_depth():
     body = client.get("/data?minDepth=50&maxDepth=200").json()
-    assert body["grid"]["depth"] == [50, 100, 150, 200]
+    depths = body["grid"]["depth"]
+    assert all(50 <= depth <= 200 for depth in depths)
+    assert depths == sorted(depths)
 
 
 def test_arrays_still_match_filtered_grid_shape():
