@@ -5,16 +5,18 @@
    
    ```json
    {
-     "time": "2024-01-15T00:00:00Z",
+     "time": "2026-09-20T12:00:00Z",
      "grid": {
-       "lat": [15.0, 15.05, 15.10, ...],   // length: N_LAT (e.g., 20)
-       "lon": [75.0, 75.05, 75.10, ...],   // length: N_LON (e.g., 20)
-       "depth": [0, 50, 100, ..., 450]     // length: N_DEPTH (e.g., 10)
+       "lat": [5.0, 5.5, 6.0, ..., 25.0],      // length: N_LAT (41 in the real dataset)
+       "lon": [65.0, 65.5, 66.0, ..., 85.0],   // length: N_LON (41 in the real dataset)
+       "depth": [0, 100, 250, ..., 5000]       // length: N_DEPTH (14 in the real dataset)
      },
-     "temperature": [[[value, ...], ...], ...],  // shape: [depth][lat][lon]
-     "salinity": [[[value, ...], ...], ...],     // shape: [depth][lat][lon]
-     "minTemp": 10, "maxTemp": 32,
-     "minSal": 30, "maxSal": 36
+     "temperature": [[[value, ...], ...], ...],  // shape: [depth][lat][lon], degC
+     "salinity": [[[value, ...], ...], ...],     // shape: [depth][lat][lon], PSU
+     "currentSpeed": [[[value, ...], ...], ...], // shape: [depth][lat][lon], m/s = sqrt(u^2+v^2)
+     "minTemp": -2, "maxTemp": 29,
+     "minSal": 34, "maxSal": 36,
+     "minSpeed": 0, "maxSpeed": 1
    }
    ```
 
@@ -26,9 +28,10 @@
 
    | Endpoint | Method | Params | Status |
    |----------|--------|--------|--------|
-   | `/data` | GET | `?time=ISO` `?minDepth=` `?maxDepth=` | ✅ Implemented (PR #2, depth filtering PR #3) |
-   | `/health` | GET | – | ✅ Implemented |
-   | `/timeseries` | GET | `?lat=` `&lon=` | ⏳ Planned |
+   | `/data` | GET | `?minDepth=` `?maxDepth=` | ✅ Implemented (PR #2, filtering PR #3, real data PR #4) |
+   | `/health` | GET | – | ✅ Implemented — also reports `usingRealData: bool` |
+   | `/timeseries` | GET | `?lat=` `&lon=` | ❌ Not implemented — dead code in `api.js`; the frontend actually derives depth profiles client-side from `/data`'s volume grid (see `raycasting.js`'s `getVerticalProfile`), so this was never wired up. Remove from `api.js`/this doc, or tell Person 5 if you actually need it. |
+   | `?time=` | — | — | ❌ Not implemented. Removed from this table (PR #4) since it was listed as done when it wasn't — the real dataset only has one timestep right now anyway. |
    | `/docs` | GET | – | ✅ Swagger UI |
 
    ### Depth Filtering (Day 2 — PR #3)
@@ -37,6 +40,20 @@
    - Both are inclusive and optional (defaults to full range)
    - Returns 400 if `minDepth > maxDepth` or no depth levels match
    - Returns 422 for negative depth values
+
+   ### Real data (Day 3 — PR #4)
+   - `/data` is now backed by Person 4's `SyntheticDeepOceanParser` reading
+     `datasets/synthetic_deep_ocean_5000m.nc` — still synthetic, not real ocean
+     observations, but generated through the real parsing pipeline now.
+   - Adds `currentSpeed` (+ `minSpeed`/`maxSpeed`), computed server-side from the
+     dataset's `UVEL`/`VVEL` as `sqrt(u^2+v^2)`, to power the frontend's "Current Speed"
+     variable selector.
+   - If `datasets/` or `parsers/` aren't present in a checkout, the backend automatically
+     falls back to the earlier fake grid so it still boots — check `GET /health`'s
+     `usingRealData` field to see which one is live.
+   - The real grid (41×41×14 ≈ 23.5k points/variable) is bigger than the old fake one
+     (20×20×10 = 4k points) — full `/data` response is ~450KB. Flag to Person 1 if this
+     is noticeably slower to render than the old mock.
 
    ## Coordinate Convention (Person 1 ↔ Person 2)
 
